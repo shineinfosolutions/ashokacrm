@@ -1,382 +1,450 @@
-import React from "react";
-import { Routes, Route, Navigate } from "react-router-dom";
-import AppContextProvider from "./context/AppContext";
-import Sidebar from "./components/Sidebar";
-import Header from "./components/Header";
-import Dashboard from "./components/Dashboard";
-import TaskAssign from "./components/TaskAssign";
-import CategoryList from "./components/category/CategoryList.jsx";
-import RoomList from "./components/room/RoomList";
-import LoginPage from "./components/login/LoginPage";
-import StaffList from "./components/staff/StaffList";
-import BookingForm from "./components/booking/BookingForm";
-import Booking from "./components/booking/Booking";
-import EditBookingForm from "./components/booking/EditBookingForm";
-import CheckoutPage from "./components/booking/CheckoutPage";
-import RoomInspection from "./components/RoomInspection";
-import Reservation from "./components/reservation/Reservation";
-import ReservationForm from "./components/reservation/Reservationform";
+import React, { useState, useEffect } from 'react';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { AppProvider } from './context/AppContext';
+import { AuthProvider } from './context/AuthContext';
 
-import Order from "./components/laundary/Order.jsx";
-import Inventory from "./components/laundary/Inventory.jsx";
-import Loss from "./components/laundary/Loss.jsx";
-import Vendor from "./components/laundary/Vendor.jsx";
-import { useNavigate } from "react-router-dom";
-import Cabbookingform from "./components/cab/cabbookingform.jsx";
-import Cab from "./components/cab/cab.jsx";
-import Vehile from "./components/cab/Vehicle.jsx";
-import Driver from "./components/cab/Driver.jsx";
-import PantryItems from "./components/Pantry/Item.jsx";
-import PantryOrders from "./components/Pantry/Order.jsx";
-import PantryVendors from "./components/Pantry/Vendor.jsx";
-import CategoryPage from "./components/Pantry/CategoryPage.jsx";
-import PantryDashboard from "./components/Pantry/PantryDashboard.jsx";
-import Resturant from "./components/Resturant/Resturant.jsx";
-import StaffWorkTask from "./components/StaffWorkTask";
-import Orders from "./components/Resturant/Allorders.jsx";
-import ProtectedRoute from "./components/ProtectedRoute";
-import Menu from "./components/Resturant/Menu.jsx";
-import Table from "./components/Resturant/Table.jsx";
-import RestaurantBooking from "./components/Resturant/RestaurantBooking.jsx";
-import Category from "./components/Resturant/Category.jsx";
-import BookTable from "./components/Resturant/ResturantOrders.jsx";
-import KOT from "./components/Resturant/KOT.jsx";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import Customer from "./components/Customer.jsx";
-import Resturantreservation from "./components/Resturant/Resturantreservation.jsx";
+import PrivateRoute from './components/PrivateRoute';
+import Layout from './components/Layout';
+import Login from './pages/Login';
+import LoadingScreen from './components/LoadingScreen';
+import Dashboard from './components/Dashboard';
+import EasyDashboard from './components/easy dashboard/easydashboard';
+import RoomList from './components/room/RoomList';
+import CategoryList from './components/category/CategoryList';
+import RoomStatus from './components/room/RoomStatus';
+import Booking from './components/booking/Booking';
+import BookingForm from './components/booking/BookingForm';
+import EditBookingForm from './components/booking/EditBookingForm';
+import BookingDetails from './components/booking/BookingDetails';
+import Users from './components/Users/Users';
+import LaganCalendar from './components/Banquet/pages/Calendar/LaganCalendar';
+import ListBooking from './components/Banquet/pages/Students/ListBooking';
+import AddBooking from './components/Banquet/pages/Students/AddBooking';
+import UpdateBooking from './components/Banquet/pages/Students/UpdateBooking';
+import MenuPlanManager from './components/Banquet/components/MenuPlanManager';
+import Invoice from './components/Banquet/pages/Students/Invoice';
+import MenuView from './components/Banquet/pages/Students/MenuView';
+import HotelCheckout from './components/booking/HotelCheckout';
+import HotelInvoice from './components/booking/HotelInvoice';
+import HotelInventory from './components/Inventory/HotelInventory';
+import RoomService from './components/room/RoomService';
+import RoomServiceBilling from './components/room/RoomServiceBilling';
+import BillLookup from './components/room/BillLookup';
+import SaleBill from './components/room/SaleBill';
+import RoomServiceToday from './components/room/RoomServiceToday';
+import RoomServiceHistory from './components/room/RoomServiceHistory';
+import CreateRoomService from './components/room/CreateRoomService';
+import EditRoomService from './components/room/EditRoomService';
+import RoomServiceDetails from './components/room/RoomServiceDetails';
 
-import Payment from "./components/payment/Payment.jsx";
-import Invoice from "./components/restaurant/Invoice.jsx";
-import POSInvoice from "./components/POSInvoice.jsx";
-import Users from "./components/Users/Users.jsx";
-import AddBooking from "./components/Banquet/pages/Students/AddBooking.jsx";
-import ListBooking from "./components/Banquet/pages/Students/ListBooking.jsx";
-import UpdateBooking from "./components/Banquet/pages/Students/UpdateBooking.jsx";
-import BanquetInvoice from "./components/Banquet/pages/Students/Invoice.jsx";
-import SharedInvoice from "./components/Banquet/pages/Students/SharedInvoice.jsx";
-import MenuItemManager from "./components/Banquet/components/MenuItemManager.jsx";
-import PlanLimitManager from "./components/Banquet/components/PlanLimitManager.jsx";
-import MenuPlanManager from "./components/Banquet/components/MenuPlanManager.jsx";
-import LaganCalendar from "./components/Banquet/pages/Calendar/LaganCalendar.jsx";
-import MenuSelectorPage from "./components/Banquet/pages/Menu/MenuSelector.jsx";
-import MenuView from "./components/Banquet/pages/Students/MenuView.jsx";
-import SettingsPage from "./components/Settings/SettingsPage.jsx";
-import GeneralSettings from "./components/Settings/GeneralSettings.jsx";
-import BusinessSettings from "./components/Settings/BusinessSettings.jsx";
-import UserSettings from "./components/Settings/UserSettings.jsx";
-import NotificationSettings from "./components/Settings/NotificationSettings.jsx";
-import OperationalSettings from "./components/Settings/OperationalSettings.jsx";
-import SecuritySettings from "./components/Settings/SecuritySettings.jsx";
-import DataBackupSettings from "./components/Settings/DataBackupSettings.jsx";
-import IntegrationSettings from "./components/Settings/IntegrationSettings.jsx";
-import HelpSupport from "./components/HelpSupport.jsx";
-import WastageForm from "./components/Wastage/WastageForm.jsx";
-import InventoryForm from "./components/Inventory/InventoryForm.jsx";
-import StaffDashboard from "./components/staff/StaffDashboard.jsx";
-import AttendanceForm from "./components/staff/AttendanceForm.jsx";
-import PayrollForm from "./components/staff/PayrollForm.jsx";
-import AttendanceTable from "./components/staff/AttendanceTable.jsx";
-import StaffClockDashboard from "./components/staff/StaffClockDashboard.jsx";
-import AttendanceManager from "./components/staff/AttendanceManager.jsx";
-import RestaurantDashboard from "./components/restaurant/RestaurantDashboard.jsx";
-import ManageTables from "./components/restaurant/ManageTables.jsx";
-import AvailableTables from "./components/restaurant/AvailableTables.jsx";
-import EasyDashboard from "./components/easy dashboard/easydashboard.jsx";
-import CashManagement from "./components/CashManagement/CashManagement.jsx";
-import RegisterForm from "./components/auth/RegisterForm.jsx";
-import Kitchen from "./components/Kitchen.jsx";
-import KitchenStore from "./components/KitchenStore.jsx";
-import KitchenConsumption from "./components/KitchenConsumption.jsx";
-import ChefDashboard from "./components/Resturant/ChefDashboard.jsx";
-import RoomService from "./components/room/RoomService.jsx";
-import RoomServiceBilling from "./components/room/RoomServiceBilling.jsx";
-import SaleBill from "./components/room/SaleBill.jsx";
-import BillLookup from "./components/room/BillLookup.jsx";
-// import CategoryMenu from"./components/Banquet/Students/CategoryMenu.jsx"
-const BookingFormPage = () => {
-  const navigate = useNavigate();
-  return <BookingForm onClose={() => navigate("/booking")} />;
-};
-const AuthRoute = ({ children }) => {
-  const token = localStorage.getItem("token");
-  if (!token) {
-    return <Navigate to="/login" replace />;
+// In-Room Dine In Components
+import MenuItems from './components/inroomdinein/MenuItems';
+import Order from './components/inroomdinein/Order';
+import LiveOrders from './components/inroomdinein/LiveOrders';
+import AllOrders from './components/inroomdinein/AllOrders';
+import EditOrder from './components/inroomdinein/EditOrder';
+import KOT from './components/inroomdinein/KOT';
+import GSTSettings from './components/inroomdinein/GSTSettings';
+import RestaurantInvoice from './components/inroomdinein/RestaurantInvoice';
+
+// Restaurant Components
+import RestaurantDashboard from './components/restaurant/RestaurantDashboard';
+import RestaurantOrder from './components/restaurant/Order';
+import RestaurantAllOrders from './components/restaurant/Allorders';
+import RestaurantReservations from './components/restaurant/Resturantreservation';
+import RestaurantTables from './components/restaurant/Table';
+import RestaurantKOT from './components/restaurant/KOT';
+import RestaurantChefDashboard from './components/restaurant/ChefDashboard';
+import SharedHotelInvoice from './components/booking/SharedHotelInvoice';
+import { RoomServiceInvoice, LaundryInvoice } from './components/invoices';
+import NightAuditReport from './components/reports/NightAuditReport';
+import CashManagement from './components/CashManagement/CashManagement';
+import LaundryOrders from './components/Laundry/LaundryOrders';
+import CreateLaundryOrder from './components/Laundry/CreateLaundryOrder';
+import LaundryOrderView from './components/Laundry/LaundryOrderView';
+import LaundryOrderEdit from './components/Laundry/LaundryOrderEdit';
+import LaundryItems from './components/Laundry/LaundryItems';
+import LaundryCategories from './components/Laundry/LaundryCategories';
+import LossReports from './components/Laundry/LossReports';
+import VendorManagement from './components/Vendor/VendorManagement';
+import Housekeeping from './components/Housekeeping/Housekeeping';
+import Kitchen from './components/Kitchen/Kitchen';
+import KitchenStore from './components/Kitchen/KitchenStore';
+import KitchenConsumption from './components/Kitchen/KitchenConsumption';
+import PantryDashboard from './components/Pantry/PantryDashboard';
+import Item from './components/Pantry/Item';
+import CategoryPage from './components/Pantry/CategoryPage';
+import PantryOrder from './components/Pantry/Order';
+import Vendor from './components/Pantry/Vendor';
+
+import './App.css'
+
+function App() {
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setIsLoading(false);
+    }, 2500); // 2.5 seconds loading time
+
+    return () => clearTimeout(timer);
+  }, []);
+
+  if (isLoading) {
+    return <LoadingScreen />;
   }
-  return children;
-};
-const App = () => {
+
   return (
-    <AppContextProvider>
-      <ToastContainer
-        position="top-right"
-        autoClose={3000}
-        hideProgressBar={false}
-        newestOnTop={false}
-        closeOnClick
-        rtl={false}
-        pauseOnFocusLoss
-        draggable
-        pauseOnHover
-        theme="light"
-      />
-      <Routes>
-        <Route path="/login" element={<LoginPage />} />
-
-        <Route
-          path="/*"
-          element={
-            <AuthRoute>
-              <div className="flex h-screen bg-app-gradient font-sans">
-                <Sidebar />
-                <div className="flex-1 flex flex-col overflow-hidden">
-                  <Header />
-                  <main className="flex-1 overflow-y-auto">
-                    <Routes>
-                      <Route path="/" element={<Navigate to={(() => {
-                        const role = localStorage.getItem("role");
-                        const restaurantRole = localStorage.getItem("restaurantRole");
-                        if (role === "restaurant" && (restaurantRole === "cashier" || restaurantRole === "staff")) {
-                          return "/restaurant/available-tables";
-                        }
-                        return "/dashboard";
-                      })()} replace />} />
-                      <Route path="/dashboard" element={<Dashboard />} />
-                      <Route
-                        path="/pantry/dashboard"
-                        element={<PantryDashboard />}
-                      />
-                      <Route path="/pantry/item" element={<PantryItems />} />
-                      <Route
-                        path="/pantry/category"
-                        element={<CategoryPage />}
-                      />
-                      <Route path="/pantry/orders" element={<PantryOrders />} />
-                      <Route
-                        path="/pantry/vendors"
-                        element={<PantryVendors />}
-                      />
-                      <Route path="/kitchen" element={<Kitchen />} />
-                      <Route path="/kitchen-store" element={<KitchenStore />} />
-                      <Route path="/kitchen-consumption" element={<KitchenConsumption />} />
-                      <Route path="/tasks" element={<TaskAssign />} />
-                      <Route path="/category" element={<CategoryList />} />
-                      <Route path="/room" element={<RoomList />} />
-                      <Route path="/staff" element={<StaffList />} />
-                      <Route
-                        path="/bookingform"
-                        element={<BookingFormPage />}
-                      />
-                      <Route path="/booking" element={<Booking />} />
-                      <Route path="/edit-booking" element={<EditBookingForm />} />
-                      <Route
-                        path="/room-inspection"
-                        element={<RoomInspection />}
-                      />
-                      <Route path="/checkout" element={<CheckoutPage />} />
-                      <Route path="/reservation" element={<Reservation />} />
-                      <Route
-                        path="/reservationform"
-                        element={<ReservationForm />}
-                      />
-                      <Route
-                        path="/laundry/ordermanagement"
-                        element={<Order />}
-                      />
-                      <Route
-                        path="/laundry/inventorymanagement"
-                        element={<Inventory />}
-                      />
-                      <Route path="/laundry/loss" element={<Loss />} />
-                      <Route path="/laundry/vendor" element={<Vendor />} />
-                      <Route path="/cab" element={<Cab />} />
-                      <Route
-                        path="/cabbookingform"
-                        element={<Cabbookingform />}
-                      />
-                      <Route path="/cab/vehicle" element={<Vehile />} />
-                      <Route path="/cab/driver" element={<Driver />} />
-                      <Route path="/resturant" element={<Resturant />} />
-                      <Route
-                        path="/staff-work"
-                        element={
-                          <ProtectedRoute allowedRoles={["staff", "admin"]}>
-                            <StaffWorkTask />
-                          </ProtectedRoute>
-                        }
-                      />
-
-                      <Route path="/menu" element={<Menu />} />
-                      <Route path="/table" element={<Table />} />
-                      <Route
-                        path="/restaurant/manage-tables"
-                        element={<ManageTables />}
-                      />
-                      <Route
-                        path="/restaurant/available-tables"
-                        element={<AvailableTables />}
-                      />
-                      <Route
-                        path="/resturant/bookings"
-                        element={<RestaurantBooking />}
-                      />
-                      <Route
-                        path="/resturant/category"
-                        element={<Category />}
-                      />
-                      <Route path="/book-table" element={<BookTable />} />
-                      <Route path="/customers" element={<Customer />} />
-                      <Route
-                        path="/resturant/order-table"
-                        element={<BookTable />}
-                      />
-                      <Route
-                        path="/resturant/all-orders"
-                        element={<Orders />}
-                      />
-                      <Route path="/kot" element={<KOT />} />
-                      <Route
-                        path="/resturant/reservation"
-                        element={<Resturantreservation />}
-                      />
-
-                      <Route
-                        path="/chef-dashboard"
-                        element={<ChefDashboard />}
-                      />
-                      <Route path="/payment" element={<Payment />} />
-                      <Route path="/invoice" element={<Invoice />} />
-                      <Route path="/pos-invoice" element={<POSInvoice />} />
-                      <Route path="/users" element={<Users />} />
-                      <Route path="/add-booking" element={<AddBooking />} />
-                      <Route
-                        path="/banquet/add-booking"
-                        element={<AddBooking />}
-                      />
-                      <Route
-                        path="/banquet/list-booking"
-                        element={<ListBooking />}
-                      />
-                      <Route
-                        path="/banquet/update-booking/:id"
-                        element={<UpdateBooking />}
-                      />
-                      <Route
-                        path="/banquet/invoice/:id"
-                        element={<BanquetInvoice />}
-                      />
-                      <Route
-                        path="/shared-invoice/:id"
-                        element={<SharedInvoice />}
-                      />
-                      <Route
-                        path="/banquet/menu-manager"
-                        element={<MenuItemManager />}
-                      />
-                      <Route
-                        path="/banquet/plan-limit"
-                        element={<PlanLimitManager />}
-                      />
-                      <Route
-                        path="/banquet/menu-plan-manager"
-                        element={<MenuPlanManager />}
-                      />
-                      <Route
-                        path="/banquet/menu-selector"
-                        element={<MenuSelectorPage />}
-                      />
-                      <Route
-                        path="/banquet/menu-view/:id"
-                        element={<MenuView />}
-                      />
-                      <Route
-                        path="/banquet/calendar"
-                        element={<LaganCalendar />}
-                      />
-                      <Route path="/settings" element={<SettingsPage />} />
-                      <Route
-                        path="/settings/general"
-                        element={<GeneralSettings />}
-                      />
-                      <Route
-                        path="/settings/business"
-                        element={<BusinessSettings />}
-                      />
-                      <Route
-                        path="/settings/users"
-                        element={<UserSettings />}
-                      />
-                      <Route
-                        path="/settings/notifications"
-                        element={<NotificationSettings />}
-                      />
-                      <Route
-                        path="/settings/operational"
-                        element={<OperationalSettings />}
-                      />
-                      <Route
-                        path="/settings/security"
-                        element={<SecuritySettings />}
-                      />
-                      <Route
-                        path="/settings/data"
-                        element={<DataBackupSettings />}
-                      />
-                      <Route
-                        path="/settings/integrations"
-                        element={<IntegrationSettings />}
-                      />
-                      <Route path="/help" element={<HelpSupport />} />
-                      <Route path="/wastage" element={<WastageForm />} />
-                      <Route path="/inventory" element={<InventoryForm />} />
-                      <Route
-                        path="/staff-dashboard"
-                        element={<StaffDashboard />}
-                      />
-                      <Route
-                        path="/staff/attendance"
-                        element={<AttendanceForm />}
-                      />
-                      <Route path="/staff/payroll" element={<PayrollForm />} />
-                      <Route path="/staff/attendance-table" element={<AttendanceTable />} />
-                      <Route path="/staff/clock-dashboard" element={<StaffClockDashboard />} />
-                      <Route path="/staff/attendance-manager" element={<AttendanceManager />} />
-                      <Route path="/resturant/dashboard" element={<RestaurantDashboard />} />
-                      <Route path="/easy-dashboard" element={<EasyDashboard />} />
-                      <Route path="/room-service" element={<RoomService />} />
-                      <Route path="/room-service-billing" element={<RoomServiceBilling />} />
-                      <Route path="/sale-bill" element={<SaleBill />} />
-                      <Route path="/bill-lookup" element={<BillLookup />} />
-                      <Route 
-                        path="/cash-management" 
-                        element={
-                          <ProtectedRoute
-                            allowedRoles={["admin", "staff", "restaurant"]}
-                          >
-                            <CashManagement />
-                          </ProtectedRoute>
-                        }
-                      />
-                      <Route
-                        path="/register"
-                        element={
-                          <ProtectedRoute allowedRoles={["admin"]}>
-                            <RegisterForm />
-                          </ProtectedRoute>
-                        }
-                      />
-
-
-                      {/* <Route path="/banquet/categorymenu" element={<CategoryMenu />} /> */}
-                    </Routes>
-                  </main>
-                </div>
-              </div>
-            </AuthRoute>
-          }
-        />
-      </Routes>
-    </AppContextProvider>
+    <AuthProvider>
+      <AppProvider>
+          <Router>
+          <Toaster position="top-right" />
+          <Routes>
+            {/* Public Routes */}
+            <Route path="/shared-invoice/:id" element={<SharedHotelInvoice />} />
+            <Route path="/login" element={<Login />} />
+            
+            {/* Protected Routes */}
+            <Route path="/" element={
+              <PrivateRoute>
+                <Layout />
+              </PrivateRoute>
+            }>
+            <Route index element={<Navigate to="/dashboard" replace />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="easy-dashboard" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <EasyDashboard />
+              </PrivateRoute>
+            } />
+            
+            {/* Room Management Routes */}
+            <Route path="rooms" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <RoomList />
+              </PrivateRoute>
+            } />
+            <Route path="room-categories" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <CategoryList />
+              </PrivateRoute>
+            } />
+            <Route path="room-status" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <RoomStatus />
+              </PrivateRoute>
+            } />
+            
+            {/* Booking Routes */}
+            <Route path="booking" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <Booking />
+              </PrivateRoute>
+            } />
+            <Route path="bookingform" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <BookingForm />
+              </PrivateRoute>
+            } />
+            <Route path="edit-booking/:bookingId" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <EditBookingForm />
+              </PrivateRoute>
+            } />
+            <Route path="booking-details/:bookingId" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <BookingDetails />
+              </PrivateRoute>
+            } />
+            <Route path="reservation" element={<div>Reservation Component</div>} />
+            
+            {/* Inventory Routes */}
+            <Route path="inventory" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <HotelInventory />
+              </PrivateRoute>
+            } />
+            
+            {/* Laundry Routes */}
+            <Route path="laundry/orders" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <LaundryOrders />
+              </PrivateRoute>
+            } />
+            <Route path="laundry/orders/create" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <CreateLaundryOrder />
+              </PrivateRoute>
+            } />
+            <Route path="laundry/orders/view/:id" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <LaundryOrderView />
+              </PrivateRoute>
+            } />
+            <Route path="laundry/orders/edit/:id" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <LaundryOrderEdit />
+              </PrivateRoute>
+            } />
+            <Route path="laundry/categories" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <LaundryCategories />
+              </PrivateRoute>
+            } />
+            <Route path="laundry/items" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <LaundryItems />
+              </PrivateRoute>
+            } />
+            <Route path="laundry/loss-reports" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <LossReports />
+              </PrivateRoute>
+            } />
+            
+            {/* Vendor Routes */}
+            <Route path="vendors" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <VendorManagement />
+              </PrivateRoute>
+            } />
+            
+            {/* Housekeeping Routes */}
+            <Route path="housekeeping" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'HOUSEKEEPING', 'FRONT DESK']}>
+                <Housekeeping />
+              </PrivateRoute>
+            } />
+            
+            {/* Kitchen Routes */}
+            <Route path="kitchen" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'STAFF']}>
+                <Kitchen />
+              </PrivateRoute>
+            } />
+            <Route path="kitchen-store" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'STAFF']}>
+                <KitchenStore />
+              </PrivateRoute>
+            } />
+            <Route path="kitchen-consumption" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'STAFF']}>
+                <KitchenConsumption />
+              </PrivateRoute>
+            } />
+            
+            {/* Pantry Routes */}
+            <Route path="pantry/dashboard" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'STAFF', 'FRONT DESK']}>
+                <PantryDashboard />
+              </PrivateRoute>
+            } />
+            <Route path="pantry/item" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'STAFF', 'FRONT DESK']}>
+                <Item />
+              </PrivateRoute>
+            } />
+            <Route path="pantry/category" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'STAFF', 'FRONT DESK']}>
+                <CategoryPage />
+              </PrivateRoute>
+            } />
+            <Route path="pantry/orders" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'STAFF', 'FRONT DESK']}>
+                <PantryOrder />
+              </PrivateRoute>
+            } />
+            <Route path="pantry/vendors" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'STAFF', 'FRONT DESK']}>
+                <Vendor />
+              </PrivateRoute>
+            } />
+            <Route path="pantry" element={<Navigate to="/pantry/dashboard" replace />} />
+            
+            {/* Cash Management Routes */}
+            <Route path="cash-management" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'FRONT DESK', 'ACCOUNTS']}>
+                <CashManagement />
+              </PrivateRoute>
+            } />
+            
+            {/* Banquet Routes */}
+            <Route path="banquet/calendar" element={<LaganCalendar />} />
+            <Route path="banquet/add-booking" element={<AddBooking />} />
+            <Route path="banquet/update-booking/:id" element={<UpdateBooking />} />
+            <Route path="banquet/list-booking" element={<ListBooking />} />
+            <Route path="banquet/menu-plan-manager" element={<MenuPlanManager />} />
+            <Route path="banquet/invoice/:id" element={<Invoice />} />
+            <Route path="banquet/menu-view/:id" element={<MenuView />} />
+            
+            {/* Users Routes - Admin Only */}
+            <Route path="users" element={
+              <PrivateRoute requiredRoles={['ADMIN']}>
+                <Users />
+              </PrivateRoute>
+            } />
+            
+            {/* Room Service Routes */}
+            <Route path="room-service" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <RoomService />
+              </PrivateRoute>
+            } />
+            <Route path="room-service/create" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <CreateRoomService />
+              </PrivateRoute>
+            } />
+            <Route path="room-service/edit/:orderId" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <EditRoomService />
+              </PrivateRoute>
+            } />
+            <Route path="room-service/details/:id" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <RoomServiceDetails />
+              </PrivateRoute>
+            } />
+            <Route path="room-service/today" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <RoomServiceToday />
+              </PrivateRoute>
+            } />
+            <Route path="room-service/history" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <RoomServiceHistory />
+              </PrivateRoute>
+            } />
+            <Route path="room-service-billing" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <RoomServiceBilling />
+              </PrivateRoute>
+            } />
+            <Route path="bill-lookup" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <BillLookup />
+              </PrivateRoute>
+            } />
+            <Route path="sale-bill" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <SaleBill />
+              </PrivateRoute>
+            } />
+            
+            {/* Restaurant Routes */}
+            <Route path="restaurant/dashboard" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <RestaurantDashboard />
+              </PrivateRoute>
+            } />
+            <Route path="restaurant/create-order" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <RestaurantOrder />
+              </PrivateRoute>
+            } />
+            <Route path="restaurant/orders" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <RestaurantAllOrders />
+              </PrivateRoute>
+            } />
+            <Route path="restaurant/reservations" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <RestaurantReservations />
+              </PrivateRoute>
+            } />
+            <Route path="restaurant/tables" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <RestaurantTables />
+              </PrivateRoute>
+            } />
+            <Route path="restaurant/kitchen-kot" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <RestaurantKOT />
+              </PrivateRoute>
+            } />
+            <Route path="restaurant/chef-dashboard" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <RestaurantChefDashboard />
+              </PrivateRoute>
+            } />
+            
+            {/* In-Room Dine In Routes */}
+            <Route path="inroomdinein/menu-items" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <MenuItems />
+              </PrivateRoute>
+            } />
+            <Route path="inroomdinein/create-order" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <Order />
+              </PrivateRoute>
+            } />
+            <Route path="inroomdinein/live-orders" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <LiveOrders />
+              </PrivateRoute>
+            } />
+            <Route path="inroomdinein/all-orders" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <AllOrders />
+              </PrivateRoute>
+            } />
+            <Route path="inroomdinein/edit-order/:orderId" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <EditOrder />
+              </PrivateRoute>
+            } />
+            <Route path="inroomdinein/kot" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <KOT />
+              </PrivateRoute>
+            } />
+            <Route path="inroomdinein/gst-settings" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM']}>
+                <GSTSettings />
+              </PrivateRoute>
+            } />
+            <Route path="inroomdinein/invoice/:orderId" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <RestaurantInvoice />
+              </PrivateRoute>
+            } />
+            <Route path="restaurant-invoice/:bookingId" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <RestaurantInvoice />
+              </PrivateRoute>
+            } />
+            <Route path="room-service-invoice/:bookingId" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <RoomServiceInvoice />
+              </PrivateRoute>
+            } />
+            <Route path="laundry-invoice/:bookingId" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
+                <LaundryInvoice />
+              </PrivateRoute>
+            } />
+            
+            {/* Reports Routes */}
+            <Route path="night-audit-report" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'ACCOUNTS']}>
+                <NightAuditReport />
+              </PrivateRoute>
+            } />
+            
+            {/* Checkout Routes */}
+            <Route path="hotel-checkout" element={<HotelCheckout />} />
+            <Route path="invoice" element={<HotelInvoice />} />
+          </Route>
+          
+          {/* Fallback */}
+          <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
+          </Router>
+      </AppProvider>
+    </AuthProvider>
   );
-};
-export default App;
+}
+
+export default App

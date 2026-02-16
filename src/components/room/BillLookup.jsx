@@ -15,6 +15,46 @@ const BillLookup = () => {
   const [isEditing, setIsEditing] = useState(false);
   const [editableBill, setEditableBill] = useState(null);
 
+  const handleGrcNoChange = React.useCallback((e) => {
+    setGrcNo(e.target.value);
+  }, []);
+
+  const handleNavigateBack = React.useCallback(() => {
+    navigate(-1);
+  }, [navigate]);
+
+  const handleToggleEdit = React.useCallback(() => {
+    setIsEditing(prev => !prev);
+  }, []);
+
+  const handlePrint = React.useCallback(() => {
+    window.print();
+  }, []);
+
+  const handleGuestNameChange = React.useCallback((e) => {
+    setEditableBill(prev => ({...prev, guestName: e.target.value}));
+  }, []);
+
+  const handleQuantityChange = React.useCallback((index, e) => {
+    setEditableBill(prev => {
+      const newItems = [...prev.items];
+      newItems[index].quantity = parseInt(e.target.value) || 0;
+      const newAmount = newItems.reduce((sum, i) => sum + ((i.unitPrice || i.price) * i.quantity), 0);
+      return {...prev, items: newItems, amount: newAmount, totalAmount: newAmount};
+    });
+  }, []);
+
+  const handlePriceChange = React.useCallback((index, e) => {
+    setEditableBill(prev => {
+      const newItems = [...prev.items];
+      const newPrice = parseFloat(e.target.value) || 0;
+      newItems[index].unitPrice = newPrice;
+      newItems[index].price = newPrice;
+      const newAmount = newItems.reduce((sum, i) => sum + ((i.unitPrice || i.price) * i.quantity), 0);
+      return {...prev, items: newItems, amount: newAmount, totalAmount: newAmount};
+    });
+  }, []);
+
   useEffect(() => {
     const navGrcNo = location.state?.grcNo;
     if (navGrcNo) {
@@ -22,9 +62,9 @@ const BillLookup = () => {
       fetchBillsForGrc(navGrcNo);
     }
     fetchGstData();
-  }, [location.state]);
+  }, [location.state, fetchBillsForGrc, fetchGstData]);
 
-  const fetchGstData = async () => {
+  const fetchGstData = React.useCallback(async () => {
     try {
       const token = localStorage.getItem('token');
       const [gstResponse, gstNumberResponse] = await Promise.all([
@@ -39,21 +79,22 @@ const BillLookup = () => {
       setHotelGstNumber(activeGstNumber);
     } catch (error) {
       console.error('Error fetching GST data:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch GST data';
     }
-  };
+  }, [axios]);
 
-  const fetchBillsForGrc = async (grcNumber) => {
+  const fetchBillsForGrc = React.useCallback(async (grcNumber) => {
     if (!grcNumber.trim()) return;
     
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/restaurant-orders/all', {
+      const response = await axios.get('/api/room-service/all', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      const roomOrders = response.data.filter(order => 
-        order.tableNo && order.tableNo.startsWith('R') && order.grcNo === grcNumber
+      const roomOrders = (response.data.orders || []).filter(order => 
+        order.grcNo === grcNumber
       );
       
       if (roomOrders.length > 0) {
@@ -64,18 +105,18 @@ const BillLookup = () => {
           if (order.items) {
             combinedItems.push(...order.items);
           }
-          totalAmount += order.amount;
+          totalAmount += order.subtotal || order.amount || 0;
         });
         
         const consolidatedBill = {
           _id: `combined-${grcNumber}`,
           billNumber: `CB-${grcNumber}`,
           grcNo: grcNumber,
-          tableNo: roomOrders[0].tableNo,
+          tableNo: roomOrders[0].roomNumber || roomOrders[0].tableNo,
           guestName: roomOrders[0].guestName,
           items: combinedItems,
           amount: totalAmount,
-          totalAmount: Math.round(totalAmount * 1.28),
+          totalAmount: totalAmount,
           createdAt: new Date().toISOString(),
           orderCount: roomOrders.length
         };
@@ -88,11 +129,12 @@ const BillLookup = () => {
       }
     } catch (error) {
       console.error('Error fetching bills:', error);
+      const errorMessage = error.response?.data?.message || error.message || 'Failed to fetch bills';
       setBills([]);
     } finally {
       setLoading(false);
     }
-  };
+  }, [axios]);
 
   const fetchBills = () => {
     fetchBillsForGrc(grcNo);
@@ -119,7 +161,7 @@ const BillLookup = () => {
                 type="text"
                 placeholder="Enter GRC Number"
                 value={grcNo}
-                onChange={(e) => setGrcNo(e.target.value)}
+                onChange={handleGrcNoChange}
                 className="flex-1 px-4 py-2 border rounded-lg focus:outline-none focus:ring-2"
                 style={{borderColor: 'var(--color-border)', '--tw-ring-color': 'var(--color-primary)'}}
               />
@@ -143,7 +185,7 @@ const BillLookup = () => {
             <div className="max-w-4xl mx-auto">
               <div className="flex justify-between items-start mb-8">
                 <button
-                  onClick={() => navigate(-1)}
+                  onClick={handleNavigateBack}
                   className="flex items-center hover:opacity-80 transition-opacity no-print"
                   style={{color: 'var(--color-primary)'}}
                 >
@@ -156,14 +198,14 @@ const BillLookup = () => {
                 </div>
                 <div className="flex gap-2 no-print">
                   <button
-                    onClick={() => setIsEditing(!isEditing)}
+                    onClick={handleToggleEdit}
                     className="flex items-center px-4 py-2 rounded-lg border hover:bg-gray-50"
                     style={{borderColor: 'var(--color-border)', color: 'var(--color-text)'}}
                   >
                     {isEditing ? 'Save' : 'Edit'}
                   </button>
                   <button 
-                    onClick={() => window.print()} 
+                    onClick={handlePrint} 
                     className="flex items-center px-4 py-2 rounded-lg border hover:bg-gray-50"
                     style={{borderColor: 'var(--color-border)', color: 'var(--color-text)'}}
                   >
@@ -194,7 +236,7 @@ const BillLookup = () => {
                       <input
                         type="text"
                         value={editableBill?.guestName || 'Guest'}
-                        onChange={(e) => setEditableBill({...editableBill, guestName: e.target.value})}
+                        onChange={handleGuestNameChange}
                         className="border rounded px-2 py-1 text-sm"
                       />
                     ) : (
@@ -241,12 +283,7 @@ const BillLookup = () => {
                               <input
                                 type="number"
                                 value={item.quantity}
-                                onChange={(e) => {
-                                  const newItems = [...editableBill.items];
-                                  newItems[index].quantity = parseInt(e.target.value) || 0;
-                                  const newAmount = newItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-                                  setEditableBill({...editableBill, items: newItems, amount: newAmount, totalAmount: Math.round(newAmount * 1.28)});
-                                }}
+                                onChange={handleQuantityChange.bind(null, index)}
                                 className="border rounded px-2 py-1 w-16 text-sm"
                               />
                             ) : (
@@ -258,20 +295,15 @@ const BillLookup = () => {
                               <input
                                 type="number"
                                 step="0.01"
-                                value={item.price?.toFixed(2) || '0.00'}
-                                onChange={(e) => {
-                                  const newItems = [...editableBill.items];
-                                  newItems[index].price = parseFloat(e.target.value) || 0;
-                                  const newAmount = newItems.reduce((sum, i) => sum + (i.price * i.quantity), 0);
-                                  setEditableBill({...editableBill, items: newItems, amount: newAmount, totalAmount: Math.round(newAmount * 1.28)});
-                                }}
+                                value={(item.unitPrice || item.price)?.toFixed(2) || '0.00'}
+                                onChange={handlePriceChange.bind(null, index)}
                                 className="border rounded px-2 py-1 w-20 text-sm"
                               />
                             ) : (
-                              `₹${item.price?.toFixed(2) || '0.00'}`
+                              `₹${(item.unitPrice || item.price)?.toFixed(2) || '0.00'}`
                             )}
                           </td>
-                          <td className="px-4 py-3 font-semibold">₹{(item.price * item.quantity).toFixed(2)}</td>
+                          <td className="px-4 py-3 font-semibold">₹{(item.totalPrice || (item.unitPrice || item.price) * item.quantity).toFixed(2)}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -281,22 +313,6 @@ const BillLookup = () => {
 
               <div className="border-t pt-6">
                 <div className="max-w-md ml-auto space-y-3">
-                  <div className="flex justify-between py-2">
-                    <span className="font-medium">Subtotal:</span>
-                    <span>₹{editableBill?.amount.toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="font-medium">CGST ({gstData?.cgst || 9}%):</span>
-                    <span>₹{(editableBill?.amount * ((gstData?.cgst || 9) / 100)).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="font-medium">SGST ({gstData?.sgst || 9}%):</span>
-                    <span>₹{(editableBill?.amount * ((gstData?.sgst || 9) / 100)).toFixed(2)}</span>
-                  </div>
-                  <div className="flex justify-between py-2">
-                    <span className="font-medium">Service Charge (10%):</span>
-                    <span>₹{(editableBill?.amount * 0.1).toFixed(2)}</span>
-                  </div>
                   <div className="flex justify-between py-3 border-t-2 text-xl font-bold" style={{color: 'var(--color-primary)'}}>
                     <span>TOTAL:</span>
                     <span>₹{editableBill?.totalAmount.toFixed(2)}</span>

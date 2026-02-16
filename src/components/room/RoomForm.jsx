@@ -209,7 +209,7 @@ const RoomForm = ({
                     <option value="" disabled className="italic text-gray-400">
                       Select a category
                     </option>
-                    {categories.map((category) => (
+                    {Array.isArray(categories) && categories.map((category) => (
                       <option key={category._id} value={category._id}>
                         {category.name}
                       </option>

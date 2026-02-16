@@ -229,8 +229,8 @@ const PlanLimitManager = () => {
     try {
       setLoading(true);
       const [limitsResponse, categoriesResponse] = await Promise.all([
-        axios.get('https://ashoka-api.shineinfosolutions.in/api/plan-limits/get'),
-        axios.get('https://ashoka-api.shineinfosolutions.in/api/banquet-categories/all')
+        axios.get(`${import.meta.env.VITE_API_URL}/api/plan-limits/get`),
+        axios.get(`${import.meta.env.VITE_API_URL}/api/banquet-categories/all`)
       ]);
       if (limitsResponse.data.success) {
         setLimits(limitsResponse.data.data);
@@ -249,7 +249,7 @@ const PlanLimitManager = () => {
 
   const handleSave = async (planData) => {
     try {
-  const response = await axios.post('https://ashoka-api.shineinfosolutions.in/api/plan-limits', planData);
+  const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/plan-limits`, planData);
       if (response.data.success) {
         toast.success('Plan limits updated successfully');
         setEditingPlan(null);
@@ -277,7 +277,7 @@ const PlanLimitManager = () => {
     useEffect(() => {
       const fetchCategories = async () => {
         try {
-          const response = await axios.get('https://ashoka-api.shineinfosolutions.in/api/banquet-categories/all');
+          const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/banquet-categories/all`);
           setCategories(response.data || []);
         } catch (error) {
           toast.error('Failed to fetch categories');
@@ -295,12 +295,12 @@ const PlanLimitManager = () => {
 
     const handleCreateCategory = async (categoryData) => {
       try {
-        const response = await axios.post('https://ashoka-api.shineinfosolutions.in/api/banquet-categories/create', categoryData);
+        const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/banquet-categories/create`, categoryData);
         if (response.status === 200 || response.status === 201) {
           toast.success('Category created successfully');
           setShowCategoryForm(false);
           // Refresh categories
-          const categoriesResponse = await axios.get('https://ashoka-api.shineinfosolutions.in/api/banquet-categories/all');
+          const categoriesResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/banquet-categories/all`);
           setCategories(categoriesResponse.data || []);
         }
       } catch (error) {
@@ -311,11 +311,11 @@ const PlanLimitManager = () => {
     const handleDeleteCategory = async (categoryId) => {
       if (window.confirm('Are you sure you want to delete this category?')) {
         try {
-          const response = await axios.delete(`/api/banquet-categories/delete/${categoryId}`);
+          const response = await axios.delete(`${import.meta.env.VITE_API_URL}/api/banquet-categories/delete/${categoryId}`);
           if (response.status === 200) {
             toast.success('Category deleted successfully');
             // Refresh categories
-            const categoriesResponse = await axios.get('https://ashoka-api.shineinfosolutions.in/api/banquet-categories/all');
+            const categoriesResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/banquet-categories/all`);
             setCategories(categoriesResponse.data || []);
             // Remove from form limits
             setFormData(prev => {

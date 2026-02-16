@@ -6,6 +6,7 @@ import {
 } from 'lucide-react';
 import { useAppContext } from '../../context/AppContext';
 import ViewKOTModal from './ViewKOTModal.jsx';
+import { motion } from 'framer-motion';
 
 // --- Theme Colors (For consistent look) ---
 const THEME_ACCENT = '#CFA85A'; // Gold/Khaki
@@ -637,7 +638,13 @@ const DashboardContent = () => {
     };
     
     return (
-        <div className="p-6 bg-gradient-to-br from-[#f8f7f4] to-[#e9e1cc] min-h-screen">
+        <motion.div 
+            key="restaurant-dashboard"
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.6, ease: "easeOut" }}
+            className="p-6 bg-gradient-to-br from-[#f8f7f4] to-[#e9e1cc] min-h-screen"
+        >
             {/* Simple Header */}
             <div className="mb-8">
                 <h1 className="text-3xl font-bold text-gray-800 flex items-center">
@@ -1407,7 +1414,7 @@ const DashboardContent = () => {
                     </div>
                 </div>
             )}
-        </div>
+        </motion.div>
     );
 };
 

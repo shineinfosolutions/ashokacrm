@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { useEffect, useRef, useState } from "react";
 import DashboardLoader from '../../../DashboardLoader';
-import useWebSocket from '../../../../hooks/useWebSocket';
+
 
 import { AiFillFileExcel } from "react-icons/ai";
 import { CSVLink } from "react-csv";
@@ -32,8 +32,9 @@ const ListBooking = () => {
   const [productToDelete, setProductToDelete] = useState(null);
   const [allData, setAllData] = useState([]);
   
-  // WebSocket connection
-  const { lastMessage, readyState, sendMessage } = useWebSocket();
+  // WebSocket removed
+  const readyState = 0;
+  const sendMessage = () => {};
   // Detect mobile view
   const [isMobile, setIsMobile] = useState(() =>
     typeof window !== "undefined" ? window.innerWidth <= 600 : false
@@ -51,7 +52,7 @@ const ListBooking = () => {
     try {
       axios
         .get(
-          `https://ashoka-api.shineinfosolutions.in/api/banquet-bookings/pg?page=${currentPage}`
+          `${import.meta.env.VITE_API_URL}/api/banquet-bookings/pg?page=${currentPage}`
         )
         .then((res) => {
           if (res.data) {
@@ -88,7 +89,7 @@ const ListBooking = () => {
   const fetchAllData = () => {
     try {
       axios
-        .get(`https://ashoka-api.shineinfosolutions.in/api/banquet-bookings`)
+        .get(`${import.meta.env.VITE_API_URL}/api/banquet-bookings`)
         .then((res) => {
           if (res.data) {
             console.log("All Data:", res.data);
@@ -113,33 +114,7 @@ const ListBooking = () => {
     fetchUsers();
   }, [currentPage]);
 
-  // Handle WebSocket messages
-  useEffect(() => {
-    if (lastMessage) {
-      console.log('WebSocket message received:', lastMessage);
-      
-      switch (lastMessage.type) {
-        case 'BOOKING_CREATED':
-          toast.success('🎉 New booking created!');
-          fetchUsers();
-          break;
-        case 'BOOKING_UPDATED':
-          toast.success('✅ Booking updated!');
-          fetchUsers();
-          break;
-        case 'BOOKING_DELETED':
-          toast.success('🗑️ Booking deleted!');
-          fetchUsers();
-          break;
-        case 'BOOKING_STATUS_CHANGED':
-          toast.success(`📋 Booking status changed to ${lastMessage.data.status}`);
-          fetchUsers();
-          break;
-        default:
-          break;
-      }
-    }
-  }, [lastMessage]);
+
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -153,15 +128,11 @@ const ListBooking = () => {
     setLoading(true);
     try {
       axios
-        .delete(`https://ashoka-api.shineinfosolutions.in/api/banquet-bookings/delete/${id}`)
+        .delete(`${import.meta.env.VITE_API_URL}/api/banquet-bookings/delete/${id}`)
         .then((res) => {
           console.log(res);
           if (res.data) {
-            // Send WebSocket message for real-time update
-            sendMessage({
-              type: 'BOOKING_DELETED',
-              data: { id }
-            });
+
             toast.success('Booking deleted successfully');
             fetchUsers();
           }
@@ -220,7 +191,7 @@ const ListBooking = () => {
     // Send API request to update status in backend
     axios
       .put(
-        `https://ashoka-api.shineinfosolutions.in/little/achiver/update-status/${id}`,
+        `${import.meta.env.VITE_API_URL}/api/banquet-bookings/update-status/${id}`,
         {
           status: updatedStatus, // Boolean status value
         }
@@ -326,7 +297,7 @@ const ListBooking = () => {
       try {
         axios
           .get(
-            `https://ashoka-api.shineinfosolutions.in//api/bookings/search?q=${searchQuery}`
+            `${import.meta.env.VITE_API_URL}/api/bookings/search?q=${searchQuery}`
           )
           .then((res) => {
             console.log(res);
@@ -499,7 +470,7 @@ const ListBooking = () => {
               
               <div className="flex flex-col sm:flex-row gap-2">
                 <Link
-                  to={"/add-booking"}
+                  to={"/banquet/add-booking"}
                   className="inline-flex items-center gap-2 px-4 py-2 text-white rounded-lg shadow transition-colors font-semibold"
                   style={{backgroundColor: 'hsl(45, 43%, 58%)'}}
                 >
@@ -597,6 +568,8 @@ const ListBooking = () => {
                             ? 'bg-green-100 text-green-800' 
                             : item.bookingStatus === 'Tentative'
                             ? 'bg-yellow-100 text-yellow-800'
+                            : item.bookingStatus === 'Cancelled'
+                            ? 'bg-red-100 text-red-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}>
                           {item.bookingStatus}
@@ -660,7 +633,7 @@ const ListBooking = () => {
                           const balanceAmount = typeof item.balance === 'object' ? (item.balance?.amount || 0) : (item.balance || 0);
                           
                           const message =
-                            `🌟 *Welcome to Hotel ASHOKA HOTEL!* 🌟\n\n` +
+                            `🌟 *Welcome to Hotel ${import.meta.env.VITE_HOTEL_NAME || 'ASHOKA HOTEL'}!* 🌟\n\n` +
                             `Here's your booking confirmation:\n\n` +
                             `📅 *Date:* ${new Date(
                               item.startDate
@@ -776,6 +749,8 @@ const ListBooking = () => {
                             ? 'bg-green-100 text-green-800' 
                             : item.bookingStatus === 'Tentative'
                             ? 'bg-yellow-100 text-yellow-800'
+                            : item.bookingStatus === 'Cancelled'
+                            ? 'bg-red-100 text-red-800'
                             : 'bg-gray-100 text-gray-800'
                         }`}>
                           {item.bookingStatus}
@@ -832,7 +807,7 @@ const ListBooking = () => {
                             const balanceAmount = typeof item.balance === 'object' ? (item.balance?.amount || 0) : (item.balance || 0);
                             
                             const message =
-                              `🌟 *Welcome to Hotel ASHOKA HOTEL!* 🌟\n\n` +
+                              `🌟 *Welcome to Hotel ${import.meta.env.VITE_HOTEL_NAME || 'ASHOKA HOTEL'}!* 🌟\n\n` +
                               `Here's your booking confirmation:\n\n` +
                               `📅 *Date:* ${new Date(
                                 item.startDate

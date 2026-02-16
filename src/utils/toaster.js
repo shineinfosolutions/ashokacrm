@@ -1,8 +1,8 @@
-import { toast } from 'react-toastify';
+import toast from 'react-hot-toast';
 
 export const showToast = {
   success: (message) => toast.success(message),
   error: (message) => toast.error(message),
-  info: (message) => toast.info(message),
-  warning: (message) => toast.warn(message)
+  loading: (message) => toast.loading(message),
+  dismiss: (toastId) => toast.dismiss(toastId)
 };

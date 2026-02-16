@@ -1,16 +1,106 @@
-
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useMemo, lazy, Suspense } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Home, Bed, AlertTriangle, Clock, CalendarCheck, DoorOpen, DollarSign, Users, TrendingUp, ChevronRight, Loader2, User, Package, MapPin, ChefHat, RefreshCw } from 'lucide-react';
 import DashboardLoader from '../DashboardLoader';
 
 // --- Configuration ---
-const BACKEND_URL = 'https://ashoka-api.shineinfosolutions.in';
+const BACKEND_URL = import.meta.env.VITE_API_URL;
 const TODAY = new Date().toDateString();
+const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
 
-// --- Utility: Fetch with Exponential Backoff ---
-// This robust function ensures stability by retrying API calls if they fail.
+// Simple cache implementation
+const cache = new Map();
+
+const getCachedData = (key) => {
+  const cached = cache.get(key);
+  if (cached && Date.now() - cached.timestamp < CACHE_DURATION) {
+    return cached.data;
+  }
+  return null;
+};
+
+const setCachedData = (key, data) => {
+  cache.set(key, { data, timestamp: Date.now() });
+};
+
+// Add CSS animations
+const styles = `
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  .animate-fadeInUp {
+    opacity: 0;
+    animation: fadeInUp 0.5s ease-out forwards;
+  }
+  
+  .animate-slideInLeft {
+    opacity: 0;
+    animation: slideInLeft 0.4s ease-out forwards;
+  }
+  
+  .animate-scaleIn {
+    opacity: 0;
+    animation: scaleIn 0.3s ease-out forwards;
+  }
+  
+  .animate-delay-100 { animation-delay: 0.1s; }
+  .animate-delay-200 { animation-delay: 0.2s; }
+  .animate-delay-300 { animation-delay: 0.3s; }
+  .animate-delay-400 { animation-delay: 0.4s; }
+  .animate-delay-500 { animation-delay: 0.5s; }
+`;
+
+// Inject styles only once
+if (typeof document !== 'undefined' && !document.getElementById('easy-dashboard-styles')) {
+  const styleSheet = document.createElement('style');
+  styleSheet.id = 'easy-dashboard-styles';
+  styleSheet.textContent = styles;
+  document.head.appendChild(styleSheet);
+}
+
+
+
+
+
+// --- Utility: Fetch with Cache and Exponential Backoff ---
 const fetchWithRetry = async (url, retries = 3) => {
+    // Check cache first
+    const cacheKey = url;
+    const cachedData = getCachedData(cacheKey);
+    if (cachedData) {
+        return cachedData;
+    }
+
     const token = localStorage.getItem('token');
     const headers = { 'Content-Type': 'application/json' };
     if (token) {
@@ -25,117 +115,34 @@ const fetchWithRetry = async (url, retries = 3) => {
             });
 
             if (!response.ok) {
-                // Throw an error to trigger the catch block and retry
+                if (response.status === 404 && (url.includes('/pantry/') || url.includes('/restaurant-orders/'))) {
+                    return [];
+                }
+                if (response.status === 401 && url.includes('/bookings/')) {
+                    return [];
+                }
                 throw new Error(`HTTP error! status: ${response.status}`);
             }
 
-            return await response.json();
+            const data = await response.json();
+            // Cache the successful response
+            setCachedData(cacheKey, data);
+            return data;
         } catch (error) {
-            console.error(`Attempt ${i + 1} failed for ${url}:`, error.message);
             if (i < retries - 1) {
-                // Exponential backoff: 1s, 2s, 4s delay
                 const delay = Math.pow(2, i) * 1000;
                 await new Promise(resolve => setTimeout(resolve, delay));
             } else {
-                console.error(`Failed to fetch data from ${url} after ${retries} attempts.`);
+                if (url.includes('/pantry/') || url.includes('/restaurant-orders/') || url.includes('/bookings/')) {
+                    return [];
+                }
                 throw new Error(`Failed to fetch data: ${error.message}`);
             }
         }
     }
 };
 
-// --- Sub-Component: RoomCard (Themed Classy UI) ---
-const RoomCard = ({ room, currentStatus, booking, getRoomCategory, navigate, setSelectedRoom, setShowGuestDetails }) => {
-    const isAvailable = currentStatus === 'available';
-    const isBooked = currentStatus === 'booked';
 
-    // Status mapping using semantic and theme colors
-    const statusMap = {
-        'available': { 
-            bg: 'bg-green-50 hover:bg-green-100', 
-            text: 'text-green-700', 
-            accent: 'border-green-500', 
-            label: 'AVAILABLE', 
-            icon: DoorOpen 
-        },
-        'booked': { 
-            bg: 'bg-red-200 hover:bg-red-300', 
-            text: 'text-red-900', 
-            accent: 'border-red-700', 
-            label: 'OCCUPIED', 
-            icon: Users 
-        },
-        'maintenance': { 
-            bg: 'bg-yellow-100 hover:bg-yellow-200', 
-            text: 'text-yellow-800', 
-            accent: 'border-yellow-600', 
-            label: 'MAINTENANCE', 
-            icon: AlertTriangle 
-        },
-    };
-
-    const statusProps = statusMap[currentStatus] || statusMap.available;
-    const Icon = statusProps.icon;
-
-    const handleCardClick = () => {
-        if (isBooked && booking) {
-            // Navigate to room service for occupied rooms
-            const roomWithBooking = { ...room, booking };
-            localStorage.setItem('selectedRoomService', JSON.stringify(roomWithBooking));
-            navigate('/room-service');
-        } else if (isAvailable) {
-            const roomData = { 
-                roomNumber: room.room_number, 
-                category: getRoomCategory(room), 
-                roomId: room._id, 
-                rate: room.price || 0,
-                categoryId: room.category?._id || room.category
-            };
-            localStorage.setItem('selectedRoomForBooking', JSON.stringify(roomData));
-            console.log("Room selected for booking:", roomData);
-            navigate('/bookingform');
-        }
-    };
-
-    return (
-        <div
-            key={room._id}
-            className={`
-                ${statusProps.bg}
-                rounded-lg shadow-md border-t-2 ${statusProps.accent} 
-                transition-all duration-300 cursor-pointer hover:shadow-lg
-                min-h-[120px] sm:min-h-[140px]
-            `}
-            onClick={handleCardClick}
-        >
-            <div className="p-2 sm:p-3 flex flex-col items-center h-full justify-center">
-                <Icon size={16} className={`sm:w-5 sm:h-5 mb-1 ${statusProps.text}`} />
-                <div className={`font-extrabold text-xl sm:text-2xl lg:text-3xl mb-1`} style={{color: 'var(--color-text)'}}>
-                    {room.room_number}
-                </div>
-                
-                <div className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider mb-1 sm:mb-2 text-gray-500 text-center">
-                    {statusProps.label}
-                </div>
-
-                <div className="text-xs sm:text-sm text-gray-400 italic mb-1 sm:mb-2 text-center px-1">
-                    {getRoomCategory(room)}
-                </div>
-                
-                {/* Subtle detail text */}
-                {(isBooked) && (
-                    <div className="mt-1 sm:mt-2 text-[10px] sm:text-xs text-center w-full text-gray-600">
-                        {isBooked && booking ? (
-                            <span className="font-medium block truncate px-1">
-                                Guest: {booking.name || 'Unknown'}
-                            </span>
-                        ) : null}
-                    </div>
-                )}
-            </div>
-        </div>
-    );
-};
 
 
 // --- Sub-Component: StatCard (Themed Classy UI) ---
@@ -296,6 +303,40 @@ const EasyDashboard = () => {
     const [error, setError] = useState(null);
     const [selectedRoom, setSelectedRoom] = useState(null);
     const [showGuestDetails, setShowGuestDetails] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
+
+    // Consolidated data fetching function
+    const fetchCoreData = useCallback(async () => {
+        try {
+            const roomsData = await fetchWithRetry(`${BACKEND_URL}/api/rooms/all`);
+            setRooms(Array.isArray(roomsData) ? roomsData : []);
+            
+            const bookingsData = await fetchWithRetry(`${BACKEND_URL}/api/bookings/all`);
+            const bookingsArray = bookingsData.bookings || bookingsData;
+            setBookings(Array.isArray(bookingsArray) ? bookingsArray : []);
+            
+            const categoriesData = await fetchWithRetry(`${BACKEND_URL}/api/categories/all`);
+            setCategories(Array.isArray(categoriesData) ? categoriesData : []);
+        } catch (err) {
+            console.error('Error in fetchCoreData:', err);
+            setError("Failed to load core data");
+            throw err;
+        }
+    }, []);
+
+    // Refresh function for manual data reload
+    const refreshData = useCallback(async () => {
+        setIsRefreshing(true);
+        try {
+            // Clear cache before refreshing
+            cache.clear();
+            await fetchCoreData();
+        } catch (err) {
+            setError("Failed to refresh data");
+        } finally {
+            setIsRefreshing(false);
+        }
+    }, [fetchCoreData]);
 
     // --- Data Fetching Effect ---
     useEffect(() => {
@@ -304,26 +345,25 @@ const EasyDashboard = () => {
             setError(null);
             
             try {
-                // Fetch all data concurrently
-                const [roomsData, bookingsData, categoriesData, laundryData, pantryData, foodOrdersData] = await Promise.all([
-                    fetchWithRetry(`${BACKEND_URL}/api/rooms/all`),
-                    fetchWithRetry(`${BACKEND_URL}/api/bookings/all`),
-                    fetchWithRetry(`${BACKEND_URL}/api/categories/all`),
-                    fetchWithRetry(`${BACKEND_URL}/api/laundry/all`).catch(() => []),
-                    fetchWithRetry(`${BACKEND_URL}/api/pantry/orders`).catch(() => []),
-                    fetchWithRetry(`${BACKEND_URL}/api/restaurant-orders/all`).catch(() => [])
-                ]);
+                // Fetch core data
+                await fetchCoreData();
 
-                // Filter out non-array responses
-                setRooms(Array.isArray(roomsData) ? roomsData : []);
-                setBookings(Array.isArray(bookingsData) ? bookingsData : []);
-                setCategories(Array.isArray(categoriesData) ? categoriesData : []);
-                setLaundryData(Array.isArray(laundryData) ? laundryData : laundryData?.data || []);
-                setPantryOrders(Array.isArray(pantryData) ? pantryData : pantryData?.data || []);
-                setFoodOrders(Array.isArray(foodOrdersData) ? foodOrdersData : []);
+                // Fetch optional data with delays to prevent overwhelming the server
+                setTimeout(async () => {
+                    try {
+                        const laundryData = await fetchWithRetry(`${BACKEND_URL}/api/laundry/all`);
+                        setLaundryData(Array.isArray(laundryData) ? laundryData : laundryData?.data || []);
+                    } catch { setLaundryData([]); }
+                }, 500);
+
+                setTimeout(async () => {
+                    try {
+                        const foodOrdersData = await fetchWithRetry(`${BACKEND_URL}/api/restaurant-orders/all`);
+                        setFoodOrders(Array.isArray(foodOrdersData) ? foodOrdersData : []);
+                    } catch { setFoodOrders([]); }
+                }, 1000);
 
             } catch (err) {
-                console.error("Data loading error:", err);
                 setError("Failed to load dashboard data. Please check the backend connection.");
             } finally {
                 setIsLoading(false);
@@ -331,26 +371,46 @@ const EasyDashboard = () => {
         };
 
         fetchAllData();
-    }, []); // Run once on component mount
+    }, [fetchCoreData]);
 
     
     // --- Utility Functions (Refactored to be safe with async data) ---
 
     // Memoize utility functions using useCallback for better performance
-    const getRoomCategory = useCallback((room) => { 
-        // Logic handles both embedded category object and category ID
-        const categoryId = typeof room.category === 'object' ? room.category._id : room.category;
-        const category = categories.find(cat => cat._id === categoryId);
-        
-        if (typeof room.category === 'object' && room.category.name) {
-            return room.category.name;
+    const getRoomCategory = useCallback((room) => {
+        // First check if categoryId is already populated with category object
+        if (typeof room.categoryId === 'object' && room.categoryId?.name) {
+            return room.categoryId.name;
         }
-        return category ? category.name : 'Unknown Category';
+        
+        // Handle categoryId as string/ObjectId - match with categories array
+        const categoryId = room.categoryId || room.category;
+        
+        if (categoryId && categories.length > 0) {
+            const category = categories.find(cat => 
+                cat._id === categoryId || 
+                cat._id.toString() === categoryId.toString()
+            );
+            if (category) {
+                return category.name;
+            }
+        }
+        
+        // Fallback to room title or default
+        return room.title || 'Standard Room';
     }, [categories]);
 
     const getRoomBooking = useCallback((roomNumber) => {
         return bookings.find(booking => {
-            const isValidStatus = booking.status === 'Confirmed' || booking.status === 'Booked' || booking.status === 'CheckedIn';
+            const isValidStatus = booking.status === 'Confirmed' || booking.status === 'Booked' || booking.status === 'CheckedIn' || booking.status === 'Checked In';
+            
+            // Handle comma-separated room numbers in booking
+            if (booking.roomNumber && booking.roomNumber.includes(',')) {
+                const roomNumbers = booking.roomNumber.split(',').map(num => num.trim());
+                const roomMatch = roomNumbers.includes(roomNumber.toString()) || roomNumbers.includes(roomNumber);
+                return roomMatch && isValidStatus;
+            }
+            
             // Check multiple possible field names for room number
             const roomMatch = booking.roomNumber === roomNumber || 
                              booking.roomNumber === roomNumber.toString() ||
@@ -415,10 +475,7 @@ const EasyDashboard = () => {
 
     // Get laundry data for a specific room/guest
     const getGuestLaundry = useCallback((roomNumber, guestName) => {
-        console.log(`Looking for laundry for room ${roomNumber}, guest: ${guestName}`);
-        
-        const matchingLaundry = laundryData.filter(laundry => {
-            // Check room number match (multiple field variations)
+        return laundryData.filter(laundry => {
             const roomMatch = laundry.roomNumber === roomNumber || 
                              laundry.roomNumber === roomNumber.toString() ||
                              laundry.room_number === roomNumber ||
@@ -426,25 +483,17 @@ const EasyDashboard = () => {
                              laundry.roomNo === roomNumber ||
                              laundry.roomNo === roomNumber.toString();
             
-            // Check guest name match (case insensitive)
             const nameMatch = guestName && laundry.guestName && 
                              (laundry.guestName.toLowerCase().includes(guestName.toLowerCase()) ||
                               guestName.toLowerCase().includes(laundry.guestName.toLowerCase()));
             
             return roomMatch || nameMatch;
         });
-        
-        console.log(`Found ${matchingLaundry.length} matching laundry services:`, matchingLaundry);
-        return matchingLaundry;
     }, [laundryData]);
 
     // Get food orders for a specific room/guest
     const getGuestFoodOrders = useCallback((roomNumber, guestName) => {
-        console.log(`Looking for food orders for room ${roomNumber}, guest: ${guestName}`);
-        console.log('Available food orders:', foodOrders);
-        
-        const matchingOrders = foodOrders.filter(order => {
-            // Check room number match (multiple field variations)
+        return foodOrders.filter(order => {
             const roomMatch = order.roomNumber === roomNumber || 
                              order.roomNumber === roomNumber.toString() ||
                              order.room_number === roomNumber ||
@@ -454,7 +503,6 @@ const EasyDashboard = () => {
                              order.tableNo === roomNumber ||
                              order.tableNo === roomNumber.toString();
             
-            // Check guest name match (case insensitive)
             const nameMatch = guestName && (
                 (order.guestName && (order.guestName.toLowerCase().includes(guestName.toLowerCase()) ||
                  guestName.toLowerCase().includes(order.guestName.toLowerCase()))) ||
@@ -462,13 +510,8 @@ const EasyDashboard = () => {
                  guestName.toLowerCase().includes(order.customerName.toLowerCase())))
             );
             
-            console.log(`Order ${order._id}: roomMatch=${roomMatch}, nameMatch=${nameMatch}`, order);
-            
             return roomMatch || nameMatch;
         });
-        
-        console.log(`Found ${matchingOrders.length} matching orders:`, matchingOrders);
-        return matchingOrders;
     }, [foodOrders]);
 
     // Calculate stay duration
@@ -482,31 +525,20 @@ const EasyDashboard = () => {
     }, []);
     // -----------------------------------------------------------------
 
-    // Debug: Console log all data
-    console.log('All rooms data:', rooms);
-    console.log('All bookings data:', bookings);
-    console.log('All laundry data:', laundryData);
-    console.log('All pantry orders:', pantryOrders);
+
     
-    // Console log all rooms with their calculated status
-    rooms.forEach(room => {
-        const status = getRoomStatus(room);
-        const booking = getRoomBooking(room.room_number);
-        console.log(`Room ${room.room_number}: Status = ${status}, Booking = `, booking);
-    });
+    const roomStats = useMemo(() => getRoomStats(), [rooms, getRoomStatus]);
+    const roomsByFloor = useMemo(() => getRoomsByFloor(), [rooms]);
     
-    const roomStats = getRoomStats();
-    const roomsByFloor = getRoomsByFloor();
-    
-    // Stats for cards calculations
-    // NOTE: Total revenue is still a static placeholder as it's not available in the provided APIs
-    const totalRevenue = 15000000; 
-    
-    const todayCheckins = bookings.filter(b => b.status === 'Confirmed' && new Date(b.checkInDate).toDateString() === TODAY).length;
-    
-    // Find occupied rooms and calculate occupancy
-    const bookedRoomsCount = rooms.filter(room => getRoomStatus(room) === 'booked').length;
-    const occupancyPercent = rooms.length > 0 ? ((bookedRoomsCount / rooms.length) * 100).toFixed(1) : 0;
+    // Stats for cards calculations - memoized
+    const dashboardStats = useMemo(() => {
+        const totalRevenue = 15000000; 
+        const todayCheckins = bookings.filter(b => b.status === 'Confirmed' && new Date(b.checkInDate).toDateString() === TODAY).length;
+        const bookedRoomsCount = rooms.filter(room => getRoomStatus(room) === 'booked').length;
+        const occupancyPercent = rooms.length > 0 ? ((bookedRoomsCount / rooms.length) * 100).toFixed(1) : 0;
+        
+        return { totalRevenue, todayCheckins, bookedRoomsCount, occupancyPercent };
+    }, [rooms, bookings, getRoomStatus]);
     
     // --- Render Logic ---
     if (isLoading) {
@@ -529,10 +561,10 @@ const EasyDashboard = () => {
     return (
         <div 
             className="min-h-screen p-4 sm:p-10 font-sans" 
-            style={{backgroundColor: 'var(--color-background)'}}
+            style={{backgroundColor: 'var(--color-background)', opacity: isLoading ? 0 : 1, transition: 'opacity 0.3s ease-in-out'}}
         >
             {/* Header */}
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-10 pb-5 border-b gap-4" style={{borderColor: 'var(--color-border)'}}>
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-10 pb-5 border-b gap-4 animate-slideInLeft animate-delay-100" style={{borderColor: 'var(--color-border)'}}>
                 <h1 className="text-2xl sm:text-3xl lg:text-4xl font-light tracking-wider flex items-center" style={{color: 'var(--color-text)'}}>
                     <Home size={24} className="sm:w-7 sm:h-7 lg:w-8 lg:h-8 mr-2 sm:mr-3" style={{color: 'var(--color-primary)'}} /> 
                     <span className="hidden sm:inline">HOSPITALITY MANAGEMENT</span>
@@ -543,15 +575,26 @@ const EasyDashboard = () => {
 
 
             {/* Floor-wise Room Display - Elegant White Panel */}
-            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 border" style={{borderColor: 'var(--color-border)'}}>
+            <Suspense fallback={<div className="flex justify-center p-8"><Loader2 className="animate-spin" size={24} /></div>}>
+            <div className="bg-white rounded-xl sm:rounded-2xl shadow-2xl p-4 sm:p-6 lg:p-8 border animate-scaleIn animate-delay-200" style={{borderColor: 'var(--color-border)'}}>
                 <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 sm:mb-8 gap-4">
                     <h2 className="text-xl sm:text-2xl font-light tracking-wider" style={{color: 'var(--color-text)'}}>Rooms Details</h2>
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={refreshData}
+                        disabled={isRefreshing}
+                        className="flex items-center px-4 py-2 text-sm rounded-lg transition-colors bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+                    >
+                        <RefreshCw size={16} className={`mr-2 ${isRefreshing ? 'animate-spin' : ''}`} />
+                        {isRefreshing ? 'Refreshing...' : 'Refresh'}
+                    </button>
                     <div className="flex flex-wrap items-center gap-3 sm:gap-6 text-xs">
                         <span className="text-gray-600 font-medium hidden sm:inline">Room Status:</span>
                         <span className="flex items-center"><div className="w-2 h-2 rounded-full bg-green-500 mr-1 sm:mr-2"></div>Available</span>
                         <span className="flex items-center"><div className="w-2 h-2 rounded-full bg-red-700 mr-1 sm:mr-2"></div>Occupied</span>
                         <span className="flex items-center"><div className="w-2 h-2 rounded-full bg-yellow-600 mr-1 sm:mr-2"></div>Maintenance</span>
                     </div>
+                </div>
                 </div>
                 
                 {Object.keys(roomsByFloor).sort((a, b) => {
@@ -568,7 +611,7 @@ const EasyDashboard = () => {
                     }, {});
 
                     return (
-                        <div key={floor} className="mb-6 sm:mb-8 pb-4 border-b border-gray-200 last:border-b-0">
+                        <div key={floor} className="mb-6 sm:mb-8 pb-4 border-b border-gray-200 last:border-b-0 animate-fadeInUp" style={{animationDelay: `${parseInt(floor) * 100 + 300}ms`}}>
                             <h3 className="text-lg sm:text-xl font-medium mb-4 sm:mb-5 flex flex-col sm:flex-row justify-between items-start sm:items-center text-gray-700 gap-2">
                                 <span className="flex items-center tracking-wide" style={{color: 'var(--color-text)'}}>
                                     <ChevronRight size={16} className="sm:w-5 sm:h-5 mr-1" style={{color: 'var(--color-primary)'}}/> 
@@ -582,18 +625,73 @@ const EasyDashboard = () => {
                                 </span>
                             </h3>
                             <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8 gap-2 sm:gap-3 lg:gap-4">
-                                {floorRooms.map((room) => (
-                                    <RoomCard
-                                        key={room._id}
-                                        room={room}
-                                        currentStatus={getRoomStatus(room)}
-                                        booking={getRoomBooking(room.room_number)}
-                                        getRoomCategory={getRoomCategory}
-                                        navigate={navigate}
-                                        setSelectedRoom={setSelectedRoom}
-                                        setShowGuestDetails={setShowGuestDetails}
-                                    />
-                                ))}
+                                {floorRooms.map((room) => {
+                                    const currentStatus = getRoomStatus(room);
+                                    const booking = getRoomBooking(room.room_number);
+                                    const isBooked = currentStatus === 'booked';
+                                    
+                                    return (
+                                        <div
+                                            key={room._id}
+                                            className={`
+                                                ${isBooked ? 'bg-red-200 hover:bg-red-300' : currentStatus === 'available' ? 'bg-green-50 hover:bg-green-100' : 'bg-yellow-100 hover:bg-yellow-200'}
+                                                rounded-lg shadow-md border-t-2 ${isBooked ? 'border-red-700' : currentStatus === 'available' ? 'border-green-500' : 'border-yellow-600'}
+                                                transition-all duration-300 cursor-pointer hover:shadow-lg hover:scale-105
+                                                min-h-[120px] sm:min-h-[140px]
+                                                animate-scaleIn
+                                            `}
+                                            style={{ animationDelay: `${Math.min((parseInt(room.room_number) % 10) * 50 + 400, 600)}ms` }}
+                                            onClick={(e) => {
+                                                e.preventDefault();
+                                                e.stopPropagation();
+                                                
+                                                // Find booking for this room (any status)
+                                                const roomBooking = bookings.find(b => {
+                                                    if (!b.roomNumber) return false;
+                                                    const roomNumbers = b.roomNumber.split(',').map(n => n.trim());
+                                                    return roomNumbers.includes(room.room_number.toString());
+                                                });
+                                                
+                                                if (roomBooking) {
+                                                    navigate(`/booking-details/${roomBooking.grcNo || roomBooking._id}`);
+                                                } else if (currentStatus === 'available') {
+                                                    const roomData = { 
+                                                        roomNumber: room.room_number, 
+                                                        category: getRoomCategory(room), 
+                                                        roomId: room._id, 
+                                                        rate: room.price || 0,
+                                                        categoryId: room.category?._id || room.category
+                                                    };
+                                                    localStorage.setItem('selectedRoomForBooking', JSON.stringify(roomData));
+                                                    navigate('/bookingform');
+                                                } else {
+                                                    // Room shows as booked but no booking found - navigate to booking list anyway
+                                                    navigate('/booking');
+                                                }
+                                            }}
+                                        >
+                                            <div className="p-2 sm:p-3 flex flex-col items-center h-full justify-center">
+                                                <div className={`font-extrabold text-xl sm:text-2xl lg:text-3xl mb-1`} style={{color: 'var(--color-text)'}}>
+                                                    {room.room_number}
+                                                </div>
+                                                
+                                                <div className="text-[10px] sm:text-xs font-semibold uppercase tracking-wider mb-1 sm:mb-2 text-gray-500 text-center">
+                                                    {isBooked ? 'OCCUPIED' : currentStatus === 'available' ? 'AVAILABLE' : 'MAINTENANCE'}
+                                                </div>
+
+                                                {isBooked && booking ? (
+                                                    <div className="text-xs sm:text-sm text-gray-600 font-medium mb-1 sm:mb-2 text-center px-1">
+                                                        {booking.name || 'Guest'}
+                                                    </div>
+                                                ) : (
+                                                    <div className="text-xs sm:text-sm text-gray-400 italic mb-1 sm:mb-2 text-center px-1">
+                                                        {getRoomCategory(room)}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </div>
+                                    );
+                                })}
                             </div>
                         </div>
                     );
@@ -605,6 +703,7 @@ const EasyDashboard = () => {
                     </div>
                 )}
             </div>
+            </Suspense>
             
             {/* Guest Details Modal */}
             {showGuestDetails && selectedRoom && (() => {

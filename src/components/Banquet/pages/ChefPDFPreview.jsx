@@ -1,7 +1,7 @@
 import React, { useState, useRef } from 'react';
 import axios from 'axios';
 import { useReactToPrint } from "react-to-print";
-import Logo from "/src/assets/logo.png";
+import Logo from "../../../assets/logo.png";
 
 const ChefPDFPreview = ({ booking, className }) => {
   const [showPreview, setShowPreview] = useState(false);
@@ -14,7 +14,7 @@ const ChefPDFPreview = ({ booking, className }) => {
     try {
       const token = localStorage.getItem('token');
       const response = await axios.get(
-        `https://ashoka-api.shineinfosolutions.in/api/banquet-menus/${booking._id}`,
+        `${import.meta.env.VITE_API_URL}/api/banquet-menus/${booking._id}`,
         {
           headers: { Authorization: `Bearer ${token}` }
         }

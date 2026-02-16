@@ -2,9 +2,9 @@ import { useParams } from "react-router-dom";
 import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { useReactToPrint } from "react-to-print";
-import Logo from "/src/assets/logo.png";
+import Logo from "../../../../assets/logo.png";
 import { useNavigate } from "react-router-dom";
-import WebSocketStatus from '../../components/WebSocketStatus';
+
 
 const MenuView = () => {
   const { id } = useParams();
@@ -31,31 +31,18 @@ const MenuView = () => {
       try {
         const token = localStorage.getItem('token');
         
-        // Try to fetch menu first
-        try {
-          const res = await axios.get(
-            `https://ashoka-api.shineinfosolutions.in/api/banquet-menus/${id}`,
-            {
-              headers: { Authorization: `Bearer ${token}` }
-            }
-          );
-          console.log('Menu API Response:', res.data);
-          setMenu(res.data.data?.categories || res.data.data || res.data || {});
-          return;
-        } catch (menuError) {
-          console.log('Menu not found, trying booking data...');
-        }
-        
-        // Fallback: try to get menu from booking data
+        // Get menu from booking data directly
         const bookingRes = await axios.get(
-          `https://ashoka-api.shineinfosolutions.in/api/banquet-bookings/get/${id}`,
+          `${import.meta.env.VITE_API_URL}/api/banquet-bookings/get/${id}`,
           {
             headers: { Authorization: `Bearer ${token}` }
           }
         );
         
-        const bookingData = bookingRes.data.data || bookingRes.data;
-        if (bookingData.categorizedMenu) {
+        const bookingData = bookingRes.data;
+        console.log('Booking data:', bookingData);
+        
+        if (bookingData.categorizedMenu && Object.keys(bookingData.categorizedMenu).length > 0) {
           setMenu(bookingData.categorizedMenu);
         } else {
           setError("No menu found for this booking. The menu may not have been created yet.");
@@ -106,7 +93,7 @@ const MenuView = () => {
         >
           ← Back
         </button>
-        <WebSocketStatus className="print:hidden" />
+
       </div>
       <div className="max-w-4xl mx-auto">
         <div className="text-center mb-8">

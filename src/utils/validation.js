@@ -4,8 +4,20 @@ export const validateEmail = (email) => {
 };
 
 export const validatePhone = (phone) => {
-  const phoneRegex = /^[6-9]\d{9}$/;
+  const phoneRegex = /^\d{10}$/;
   return phoneRegex.test(phone);
+};
+
+export const validateRequired = (value) => {
+  return value && value.trim().length > 0;
+};
+
+export const validatePositiveNumber = (value) => {
+  return !isNaN(value) && parseFloat(value) > 0;
+};
+
+export const validateDateRange = (startDate, endDate) => {
+  return new Date(startDate) < new Date(endDate);
 };
 
 export const validateGST = (gst) => {
@@ -21,42 +33,4 @@ export const validatePAN = (pan) => {
 export const validateAadhaar = (aadhaar) => {
   const aadhaarRegex = /^\d{12}$/;
   return aadhaarRegex.test(aadhaar);
-};
-
-export const validateRequired = (value) => {
-  return value && value.toString().trim().length > 0;
-};
-
-export const validateMinLength = (value, minLength) => {
-  return value && value.toString().length >= minLength;
-};
-
-export const validateMaxLength = (value, maxLength) => {
-  return !value || value.toString().length <= maxLength;
-};
-
-export const validateNumber = (value) => {
-  return !isNaN(value) && isFinite(value);
-};
-
-export const validatePositiveNumber = (value) => {
-  return validateNumber(value) && parseFloat(value) > 0;
-};
-
-export const validateDate = (date) => {
-  const dateObj = new Date(date);
-  return dateObj instanceof Date && !isNaN(dateObj);
-};
-
-export const validateFutureDate = (date) => {
-  const dateObj = new Date(date);
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  return dateObj >= today;
-};
-
-export const validateDateRange = (startDate, endDate) => {
-  const start = new Date(startDate);
-  const end = new Date(endDate);
-  return start < end;
 };

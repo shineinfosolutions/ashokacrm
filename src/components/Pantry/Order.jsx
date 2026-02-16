@@ -1,11 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useAppContext } from '../../context/AppContext';
 import { showToast } from '../../utils/toaster';
-import { Plus, Edit, Trash2, Package, Clock, User, MapPin, Wifi, WifiOff } from 'lucide-react';
+import { Plus, Edit, Trash2, Package, Clock, User, MapPin } from 'lucide-react';
 import PantryInvoice from './PantryInvoice';
 import DashboardLoader from '../DashboardLoader';
 import AutoVendorNotification from './AutoVendorNotification';
-import { usePantrySocket } from '../../hooks/useSocket';
 
 const Order = () => {
   const { axios } = useAppContext();
@@ -43,7 +42,6 @@ const Order = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showAutoVendorNotification, setShowAutoVendorNotification] = useState(false);
   const [autoVendorData, setAutoVendorData] = useState({ outOfStockItems: [], autoVendorOrder: null });
-  const [wsConnected, setWsConnected] = useState(false);
 
   // Form state
   const [formData, setFormData] = useState({
@@ -58,56 +56,6 @@ const Order = () => {
     labourCharge: 0
   });
   
-
-
-  // WebSocket real-time updates
-  const handleOrderUpdate = useCallback((data) => {
-    if (data.type === 'created') {
-      setOrders(prev => [data.order, ...prev]);
-      showToast.success('New order received!');
-    } else if (data.type === 'updated') {
-      setOrders(prev => prev.map(o => o._id === data.order._id ? data.order : o));
-    } else if (data.type === 'deleted') {
-      setOrders(prev => prev.filter(o => o._id !== data.orderId));
-    }
-  }, []);
-
-  const handleItemUpdate = useCallback((data) => {
-    if (data.type === 'updated') {
-      setPantryItems(prev => prev.map(i => i._id === data.item._id ? data.item : i));
-    }
-  }, []);
-
-  const handleVendorUpdate = useCallback((data) => {
-    if (data.type === 'updated') {
-      setVendors(prev => prev.map(v => v._id === data.vendor._id ? data.vendor : v));
-    }
-  }, []);
-
-  const { socket, isConnected } = usePantrySocket(handleOrderUpdate, handleItemUpdate, handleVendorUpdate);
-
-  useEffect(() => {
-    setWsConnected(isConnected);
-    
-    if (socket && isConnected) {
-      // Listen for refresh events
-      socket.on('pantry-data-refreshed', (data) => {
-        if (data.orders) setOrders(data.orders);
-        if (data.items) setPantryItems(data.items);
-        if (data.vendors) setVendors(data.vendors);
-        showToast.success('Data refreshed via WebSocket');
-      });
-      
-      // Request initial data via WebSocket
-      socket.emit('get-pantry-data');
-    }
-    
-    return () => {
-      if (socket) {
-        socket.off('pantry-data-refreshed');
-      }
-    };
-  }, [isConnected, socket]);
 
   useEffect(() => {
     const loadInitialData = async () => {
@@ -247,14 +195,6 @@ const Order = () => {
       }
 
       resetForm();
-      
-      // Emit WebSocket event for immediate UI update
-      if (socket && wsConnected) {
-        socket.emit('pantry-order-action', { 
-          action: editingOrder ? 'updated' : 'created',
-          orderId: editingOrder?._id 
-        });
-      }
     } catch (error) {
       console.error('Order submission error:', error.response?.data);
       showToast.error(error.response?.data?.message || 'Failed to save order');
@@ -273,11 +213,6 @@ const Order = () => {
       
       // Update local state immediately without refreshing
       setOrders(prevOrders => prevOrders.filter(order => order._id !== orderId));
-      
-      // Emit WebSocket event for real-time sync
-      if (socket && wsConnected) {
-        socket.emit('pantry-order-deleted', { orderId });
-      }
       
       showToast.success('Order deleted successfully');
     } catch (error) {
@@ -305,19 +240,11 @@ const Order = () => {
         )
       );
       
-      // Emit WebSocket event for real-time sync
-      if (socket && wsConnected) {
-        socket.emit('pantry-order-status-update', { orderId, status: newStatus });
-      }
-      
-      // Try the status-only endpoint first
       await axios.put(`/api/pantry/orders/${orderId}`, 
         { status: newStatus },
         { headers: { Authorization: `Bearer ${localStorage.getItem('token')}` } }
       );
       showToast.success(`Order status updated to ${newStatus}`);
-      
-      // WebSocket handles real-time inventory updates
     } catch (error) {
       console.error('Status update error:', error.response?.data);
       
@@ -360,8 +287,6 @@ const Order = () => {
           );
           
           showToast.success(`Order status updated to ${newStatus}`);
-          
-          // WebSocket handles real-time inventory updates
         } else {
           showToast.error('Order not found');
         }
@@ -896,43 +821,23 @@ const Order = () => {
         <div>
           <div className="flex items-center gap-3">
             <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1f2937]">Pantry Orders</h1>
-            <div className="flex items-center gap-1">
-              {wsConnected ? (
-                <Wifi className="w-4 h-4 text-green-500" title="Real-time connected" />
-              ) : (
-                <WifiOff className="w-4 h-4 text-red-500" title="Real-time disconnected" />
-              )}
-              <span className={`text-xs px-2 py-1 rounded-full ${
-                wsConnected ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-              }`}>
-                {wsConnected ? 'Live' : 'Offline'}
-              </span>
-            </div>
           </div>
           <p className="text-sm text-gray-600 mt-1">
             Total: {orders.length} | Pending: {orders.filter(o => o.status === 'pending').length} | 
             Fulfilled: {orders.filter(o => o.status === 'fulfilled').length}
-            {wsConnected && <span className="text-green-600 ml-2">• Real-time updates active</span>}
           </p>
         </div>
         <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
           <button
             onClick={() => {
-              if (socket && wsConnected) {
-                // Use WebSocket to request fresh data
-                socket.emit('refresh-pantry-data');
-                showToast.success('Refreshing data via WebSocket...');
-              } else {
-                // Fallback to API calls if WebSocket not connected
-                setLoading(true);
-                Promise.all([fetchOrders(), fetchPantryItems(), fetchVendors()])
-                  .finally(() => setLoading(false));
-              }
+              setLoading(true);
+              Promise.all([fetchOrders(), fetchPantryItems(), fetchVendors()])
+                .finally(() => setLoading(false));
             }}
             disabled={loading}
             className="bg-gray-600 text-white px-4 py-2 rounded-lg hover:bg-gray-700 transition-colors text-sm font-medium disabled:opacity-50"
           >
-            {wsConnected ? 'Sync' : (loading ? 'Refreshing...' : 'Refresh')}
+            {loading ? 'Refreshing...' : 'Refresh'}
           </button>
           <button
             onClick={exportToExcel}

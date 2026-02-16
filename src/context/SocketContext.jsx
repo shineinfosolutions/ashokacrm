@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import io from 'socket.io-client';
+import { io } from 'socket.io-client';
 
 const SocketContext = createContext();
 
 export const useSocket = () => {
   const context = useContext(SocketContext);
   if (!context) {
-    throw new Error('useSocket must be used within a SocketProvider');
+    return { socket: null, isConnected: false };
   }
   return context;
 };
@@ -16,51 +16,28 @@ export const SocketProvider = ({ children }) => {
   const [isConnected, setIsConnected] = useState(false);
 
   useEffect(() => {
-    const apiUrl = import.meta.env.VITE_API_URL;
-    
-    if (!apiUrl) {
-      console.log('Socket.io disabled - no API URL configured');
-      return;
-    }
+    const socketUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000';
+    const newSocket = io(socketUrl, {
+      transports: ['websocket', 'polling'],
+      reconnection: true,
+      reconnectionDelay: 1000,
+      reconnectionAttempts: 5
+    });
 
-    let newSocket = null;
-    
-    const connectSocket = () => {
-      newSocket = io(apiUrl, {
-        transports: ['polling', 'websocket'],
-        autoConnect: true,
-        forceNew: true,
-        timeout: 5000,
-        reconnection: true,
-        reconnectionAttempts: 3,
-        reconnectionDelay: 2000
-      });
+    newSocket.on('connect', () => {
+      setIsConnected(true);
+      console.log('Socket connected');
+    });
 
-      newSocket.on('connect', () => {
-        console.log('Socket connected to server:', apiUrl);
-        setIsConnected(true);
-        newSocket.emit('join-waiter-dashboard');
-      });
+    newSocket.on('disconnect', () => {
+      setIsConnected(false);
+      console.log('Socket disconnected');
+    });
 
-      newSocket.on('disconnect', () => {
-        console.log('Socket disconnected');
-        setIsConnected(false);
-      });
-
-      newSocket.on('connect_error', (error) => {
-        console.log('Socket connection failed:', error.message);
-        setIsConnected(false);
-      });
-
-      setSocket(newSocket);
-    };
-
-    connectSocket();
+    setSocket(newSocket);
 
     return () => {
-      if (newSocket) {
-        newSocket.close();
-      }
+      newSocket.close();
     };
   }, []);
 
@@ -70,3 +47,5 @@ export const SocketProvider = ({ children }) => {
     </SocketContext.Provider>
   );
 };
+
+export default SocketContext;

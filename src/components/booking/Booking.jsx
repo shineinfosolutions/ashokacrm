@@ -1,96 +1,121 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Edit, XCircle, CheckCircle, Search, X, FileText, Trash2, Calendar } from "lucide-react";
+import { Edit, XCircle, CheckCircle, Search, X, FileText, Trash2, Calendar, Eye } from "lucide-react";
+import { useBookingList } from "../../hooks/useBookingList";
 import { useAppContext } from "../../context/AppContext";
+import { useAuth } from "../../context/AuthContext";
 import Pagination from "../common/Pagination";
 import DashboardLoader from '../DashboardLoader';
+import HotelCheckout from './HotelCheckout';
 
+// Add CSS animations
+const styles = `
+  @keyframes fadeInUp {
+    from {
+      opacity: 0;
+      transform: translateY(20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-20px);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  @keyframes scaleIn {
+    from {
+      opacity: 0;
+      transform: scale(0.95);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+  
+  .animate-fadeInUp {
+    opacity: 0;
+    animation: fadeInUp 0.5s ease-out forwards;
+  }
+  
+  .animate-slideInLeft {
+    opacity: 0;
+    animation: slideInLeft 0.4s ease-out forwards;
+  }
+  
+  .animate-scaleIn {
+    opacity: 0;
+    animation: scaleIn 0.3s ease-out forwards;
+  }
+  
+  .animate-delay-100 { animation-delay: 0.1s; }
+  .animate-delay-200 { animation-delay: 0.2s; }
+  .animate-delay-300 { animation-delay: 0.3s; }
+`;
+
+// Inject styles
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = styles;
+  document.head.appendChild(styleSheet);
+}
 
 
 
 const BookingPage = () => {
   const navigate = useNavigate();
   const { axios } = useAppContext();
-  const [bookings, setBookings] = useState([]);
-  const [rooms, setRooms] = useState([]);
-  const [categories, setCategories] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
-  const [search, setSearch] = useState("");
+  const { hasRole } = useAuth();
+  const {
+    bookings,
+    loading,
+    error,
+    setError,
+    search,
+    setSearch,
+    currentPage,
+    totalPages,
+    paginatedBookings,
+    showOnlyExtraBed,
+    setShowOnlyExtraBed,
+    generatingInvoice,
+    fetchData,
+    updatePaymentStatus,
+    updateBookingStatus,
+    deleteBooking,
+    generateInvoice,
+    handlePageChange
+  } = useBookingList();
 
   const [showInvoice, setShowInvoice] = useState(false);
   const [currentInvoice, setCurrentInvoice] = useState(null);
+  const [grcSearchResult, setGrcSearchResult] = useState(null);
+  const [isInitialLoading, setIsInitialLoading] = useState(true);
+  const [showCheckout, setShowCheckout] = useState(false);
+  const [selectedBookingForCheckout, setSelectedBookingForCheckout] = useState(null);
   const [showAmendModal, setShowAmendModal] = useState(false);
-  const [amendBookingId, setAmendBookingId] = useState(null);
+  const [selectedBookingForAmend, setSelectedBookingForAmend] = useState(null);
   const [amendmentData, setAmendmentData] = useState({
-    newCheckOut: '',
+    newCheckOutDate: '',
     reason: ''
   });
-  const [grcSearchResult, setGrcSearchResult] = useState(null);
-  const [currentPage, setCurrentPage] = useState(1);
-  const [itemsPerPage] = useState(10);
-  const [isInitialLoading, setIsInitialLoading] = useState(true);
 
   const getAuthToken = () => localStorage.getItem("token");
 
-  const fetchData = async () => {
-    setLoading(true);
-    setError(null);
-
-    try {
-      const token = getAuthToken();
-      const [bookingsRes, roomsRes, categoriesRes] = await Promise.all([
-        axios.get("/api/bookings/all", { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get("/api/rooms/all", { headers: { Authorization: `Bearer ${token}` } }),
-        axios.get("/api/categories/all", { headers: { Authorization: `Bearer ${token}` } })
-      ]);
-      
-      const bookingsData = bookingsRes.data;
-      const roomsData = Array.isArray(roomsRes.data) ? roomsRes.data : [];
-      const categoriesData = Array.isArray(categoriesRes.data) ? categoriesRes.data : [];
-      
-      setRooms(roomsData);
-      setCategories(categoriesData);
-      
-      const bookingsArray = Array.isArray(bookingsData) ? bookingsData : bookingsData.bookings || [];
-
-      const mappedBookings = bookingsArray.map((b) => {
-        const room = roomsData.find(r => r.room_number == b.roomNumber || r.roomNumber == b.roomNumber);
-        const category = room ? categoriesData.find(c => c._id == room.categoryId || c.id == room.categoryId) : null;
-        
-        return {
-          id: b._id || "N/A",
-          grcNo: b.grcNo || "N/A",
-          name: b.name || "N/A",
-          mobileNo: b.mobileNo || "N/A",
-          roomNumber: b.roomNumber || "N/A",
-          category: category?.name || category?.categoryName || "N/A",
-          checkIn: b.checkInDate
-            ? new Date(b.checkInDate).toLocaleDateString()
-            : "N/A",
-          checkOut: b.checkOutDate
-            ? new Date(b.checkOutDate).toLocaleDateString()
-            : "N/A",
-          status: b.status || "N/A",
-          paymentStatus: b.paymentStatus || "Pending",
-          vip: b.vip || false,
-          _raw: b,
-        };
-      });
-
-      setBookings(mappedBookings);
-    } catch (err) {
-      setError(err.message);
-      console.error("Error fetching data:", err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
+  React.useEffect(() => {
     const loadInitialData = async () => {
       setIsInitialLoading(true);
-      await fetchData();
+      await new Promise(resolve => setTimeout(resolve, 1000)); // Simulate loading
       setIsInitialLoading(false);
     };
     loadInitialData();
@@ -109,20 +134,7 @@ const BookingPage = () => {
     }
   };
 
-  const filteredBookings = bookings.filter(
-    (b) =>
-      b.name.toLowerCase().includes(search.toLowerCase()) ||
-      b.roomNumber.toString().includes(search.toString()) ||
-      b.grcNo.toLowerCase().includes(search.toLowerCase())
-  );
 
-  const totalPages = Math.ceil(filteredBookings.length / itemsPerPage);
-  const startIndex = (currentPage - 1) * itemsPerPage;
-  const paginatedBookings = filteredBookings.slice(startIndex, startIndex + itemsPerPage);
-
-  const handlePageChange = (page) => {
-    setCurrentPage(page);
-  };
 
   const toggleBookingStatus = async (bookingId) => {
     try {
@@ -163,6 +175,8 @@ const BookingPage = () => {
   const updateRoomStatus = async (roomNumber, status) => {
     try {
       const token = getAuthToken();
+      const roomsRes = await axios.get("/api/rooms/all", { headers: { Authorization: `Bearer ${token}` } });
+      const rooms = Array.isArray(roomsRes.data) ? roomsRes.data : [];
       const room = rooms.find(r => r.room_number == roomNumber || r.roomNumber == roomNumber);
       
       if (room) {
@@ -175,218 +189,107 @@ const BookingPage = () => {
     }
   };
 
-  const updatePaymentStatus = async (bookingId, newPaymentStatus) => {
-    try {
-      const booking = bookings.find((b) => b.id === bookingId);
-      if (!booking) throw new Error("Booking not found");
 
-      const token = getAuthToken();
-      const res = await axios.put(`/api/bookings/update/${bookingId}`, {
-        paymentStatus: newPaymentStatus,
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
 
-      setBookings((prev) =>
-        prev.map((b) =>
-          b.id === bookingId
-            ? {
-                ...b,
-                paymentStatus: newPaymentStatus,
-                _raw: {
-                  ...b._raw,
-                  paymentStatus: newPaymentStatus,
-                },
-              }
-            : b
-        )
-      );
-
-      setError(null);
-    } catch (err) {
-      console.error("Error updating payment status:", err);
-      setError(err.response?.data?.message || err.message || "Failed to update payment status");
-    }
-  };
-
-  const generateInvoice = async (bookingId) => {
+  const openCheckout = (bookingId) => {
     const booking = bookings.find((b) => b.id === bookingId);
     if (!booking) {
       setError("Booking not found");
       return;
     }
-    
-    try {
-      const token = getAuthToken();
-      
-      // First create checkout for this booking
-      const checkoutRes = await axios.post('/api/checkout/create', 
-        { bookingId },
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      
-      const checkoutId = checkoutRes.data.checkout._id;
-      
-      // Navigate to invoice page with checkout ID
-      navigate('/invoice', { 
-        state: { 
-          bookingData: booking._raw,
-          checkoutId: checkoutId,
-          guestName: booking.name,
-          roomNumber: booking.roomNumber,
-          grcNo: booking.grcNo
-        } 
-      });
-    } catch (error) {
-      console.error('Error creating checkout:', error);
-      setError('Failed to generate invoice');
-    }
+    setSelectedBookingForCheckout(booking._raw);
+    setShowCheckout(true);
   };
 
-  const deleteBooking = async (bookingId) => {
-    if (!window.confirm("Are you sure you want to delete this booking?")) return;
+  const handleCheckoutComplete = () => {
+    fetchData(); // Refresh the bookings list
+  };
+
+  const openAmendModal = async (bookingId) => {
+    const booking = bookings.find((b) => b.id === bookingId);
+    if (!booking) {
+      setError("Booking not found");
+      return;
+    }
+    if (booking.status === 'Checked Out') {
+      setError("Cannot amend checked out booking");
+      return;
+    }
     
+    // Fetch conflicting dates
     try {
       const token = getAuthToken();
-      await axios.delete(`/api/bookings/delete/${bookingId}`, {
+      const response = await axios.get(`/api/bookings/conflicts/${bookingId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setBookings(prev => prev.filter(b => b.id !== bookingId));
-      showToast.success('Booking deleted successfully');
-      setError(null);
-    } catch (err) {
-      console.error("Error deleting booking:", err);
-      showToast.error(err.response?.data?.message || err.message || "Failed to delete booking");
+      setConflictingDates(response.data.conflictingDates || []);
+    } catch (error) {
+      console.error('Error fetching conflicting dates:', error);
+      setConflictingDates([]);
     }
-  };
-
-  const handleAmendBooking = (bookingId) => {
-    setAmendBookingId(bookingId);
+    
+    setSelectedBookingForAmend(booking);
+    setAmendmentData({
+      newCheckOutDate: '',
+      reason: ''
+    });
     setShowAmendModal(true);
-    setAmendmentData({ newCheckOut: '', reason: '' });
   };
 
-  const submitAmendment = async () => {
-    if (!amendmentData.newCheckOut || !amendmentData.reason) {
-      setError('Please fill in all required fields');
+  const [amendingStay, setAmendingStay] = useState(false);
+  const [conflictingDates, setConflictingDates] = useState([]);
+
+  const handleAmendStay = async () => {
+    if (!amendmentData.newCheckOutDate) {
+      setError('Please select new check-out date');
       return;
     }
 
+    if (new Date(selectedBookingForAmend.checkIn) >= new Date(amendmentData.newCheckOutDate)) {
+      setError('Check-out date must be after original check-in date');
+      return;
+    }
+
+    setAmendingStay(true);
     try {
       const token = getAuthToken();
-      const booking = bookings.find(b => b.id === amendBookingId);
-      if (!booking) {
-        setError('Booking not found');
-        return;
-      }
-
-      // Update booking with new checkout date
-      const response = await axios.put(`/api/bookings/update/${amendBookingId}`, {
-        checkOutDate: amendmentData.newCheckOut,
-        remark: `${booking._raw.remark || ''} [Amendment: ${amendmentData.reason}]`.trim()
-      }, {
+      const response = await axios.post(`/api/bookings/amend/${selectedBookingForAmend.id}`, amendmentData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Update the booking in the list
-      setBookings(prev => prev.map(b => 
-        b.id === amendBookingId 
-          ? { ...b, checkOut: new Date(amendmentData.newCheckOut).toLocaleDateString() }
-          : b
-      ));
-      
       setShowAmendModal(false);
-      setAmendBookingId(null);
-      setAmendmentData({ newCheckOut: '', reason: '' });
+      setSelectedBookingForAmend(null);
       setError(null);
+      fetchData(); // Refresh the bookings list
       
-      alert('Booking stay amended successfully!');
-    } catch (err) {
-      console.error('Error amending booking:', err);
-      setError(err.response?.data?.message || err.message || 'Failed to amend booking');
-    }
-  };
-
-  const updateBooking = async (bookingId, updatedData) => {
-    try {
-      const res = await fetch(
-        `https://ashoka-api.shineinfosolutions.in/api/bookings/update/${bookingId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(updatedData),
-        }
-      );
+      // Show success message with amendment details
+      const amendment = response.data.amendment;
+      alert(`Booking stay amended successfully!\n\nRate adjustment: ₹${amendment.totalAdjustment}\nNew total: ₹${amendment.newTotalAmount}`);
       
-      const responseData = await res.json();
-
-      if (!res.ok) throw new Error(responseData.message || "Update failed");
-
-      setError(null);
-      setBookings((prev) =>
-        prev.map((b) =>
-          b.id === bookingId
-            ? {
-                ...b,
-                grcNo: responseData.grcNo || b.grcNo,
-                name: responseData.name || b.name,
-                mobileNo: responseData.mobileNo || b.mobileNo,
-                roomNumber: responseData.roomNumber || b.roomNumber,
-                checkIn: responseData.checkInDate ? new Date(responseData.checkInDate).toLocaleDateString() : b.checkIn,
-                checkOut: responseData.checkOutDate ? new Date(responseData.checkOutDate).toLocaleDateString() : b.checkOut,
-                status: responseData.status || b.status,
-                vip: responseData.vip !== undefined ? responseData.vip : b.vip,
-                _raw: responseData,
-              }
-            : b
-        )
-      );
-      setEditId(null);
     } catch (error) {
-      setError(`Error: ${error.message}`);
-      console.error("Update error:", error);
+      console.error('Error amending booking:', error);
+      const errorMessage = error.response?.data?.error || error.message || 'Failed to amend booking';
+      setError(errorMessage);
+    } finally {
+      setAmendingStay(false);
     }
   };
 
-  const updateBookingStatus = async (bookingId, newStatus) => {
-    try {
-      const res = await fetch(
-        `https://ashoka-api.shineinfosolutions.in/api/bookings/update/${bookingId}`,
-        {
-          method: "PUT",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({ status: newStatus }),
-        }
-      );
-      
-      const responseData = await res.json();
 
-      if (!res.ok) throw new Error(responseData.message || "Update failed");
 
-      setBookings((prev) =>
-        prev.map((b) =>
-          b.id === bookingId ? { ...b, status: newStatus } : b
-        )
-      );
-      setError(null);
-    } catch (error) {
-      setError(`Error updating status: ${error.message}`);
-      console.error("Status update error:", error);
-    }
-  };
+
 
   if (isInitialLoading) {
     return <DashboardLoader pageName="Bookings" />;
   }
 
   return (
-    <div className="p-6 overflow-auto h-full bg-background">
-      <div className="flex justify-between items-center mb-8 mt-6">
-        <h1 className="text-3xl font-extrabold text-[#1f2937]">Bookings</h1>
+    <div className="min-h-screen" style={{backgroundColor: 'hsl(45, 100%, 95%)', opacity: isInitialLoading ? 0 : 1, transition: 'opacity 0.3s ease-in-out'}}>
+      <div className="p-6">
+        <div className="flex justify-between items-center mb-8 animate-slideInLeft animate-delay-100">
+          <h1 className="text-3xl font-extrabold" style={{color: 'hsl(45, 100%, 20%)'}}>
+            Bookings
+          </h1>
         <button
           onClick={() => navigate("/bookingform")}
           className="font-semibold py-2 px-4 sm:px-6 rounded-lg shadow-md transition duration-300 text-sm sm:text-base"
@@ -396,7 +299,7 @@ const BookingPage = () => {
         </button>
       </div>
 
-      <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+      <div className="mb-6 flex flex-col sm:flex-row items-stretch sm:items-center gap-2 animate-fadeInUp animate-delay-200">
         <div className="relative flex-1">
           <input
             type="text"
@@ -418,6 +321,25 @@ const BookingPage = () => {
           style={{ backgroundColor: 'hsl(45, 43%, 58%)', color: 'white' }}
         >
           Search GRC
+        </button>
+        <button
+          onClick={() => setShowOnlyExtraBed(!showOnlyExtraBed)}
+          className={`font-semibold px-4 py-3 rounded-lg shadow-md transition duration-300 text-sm sm:text-base whitespace-nowrap ${
+            showOnlyExtraBed ? 'ring-2 ring-green-500' : ''
+          }`}
+          style={{ 
+            backgroundColor: showOnlyExtraBed ? 'hsl(120, 60%, 50%)' : 'hsl(45, 43%, 58%)', 
+            color: 'white' 
+          }}
+        >
+          {showOnlyExtraBed ? 'Show All' : 'Extra Bed Only'}
+        </button>
+        <button
+          onClick={fetchData}
+          className="font-semibold px-4 py-3 rounded-lg shadow-md transition duration-300 text-sm sm:text-base whitespace-nowrap"
+          style={{ backgroundColor: 'hsl(200, 60%, 50%)', color: 'white' }}
+        >
+          Refresh
         </button>
       </div>
 
@@ -455,75 +377,118 @@ const BookingPage = () => {
       )}
 
       {loading ? (
-        <div className="text-center py-10" style={{ color: 'hsl(45, 100%, 20%)' }}>
-          Loading bookings...
+        <div className="text-center py-10">
+          <div className="animate-spin rounded-full h-16 w-16 border-t-2 border-b-2 mx-auto" style={{borderColor: 'hsl(45, 43%, 58%)'}}></div>
+          <p className="mt-4" style={{ color: 'hsl(45, 100%, 20%)' }}>Loading bookings...</p>
         </div>
       ) : (
         <>
           {/* Desktop Table View */}
-          <div className="hidden md:block rounded-xl shadow-lg overflow-hidden" style={{ backgroundColor: 'white', border: '1px solid hsl(45, 100%, 85%)' }}>
-          <div className="overflow-x-auto">
-            <table className="min-w-full">
+          <div className="hidden md:block rounded-xl shadow-lg overflow-hidden bg-white animate-scaleIn animate-delay-300" style={{ border: '1px solid hsl(45, 100%, 85%)' }}>
+          <div className="overflow-x-auto overflow-y-scroll max-h-[70vh]" style={{scrollbarWidth: 'thin'}}>
+            <table className="w-full">
               <thead className="border-b" style={{ backgroundColor: 'hsl(45, 100%, 90%)', borderColor: 'hsl(45, 100%, 85%)' }}>
                 <tr>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(45, 100%, 20%)' }}>
-                    GRC No
+                  <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider w-20" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                    GRC
                   </th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                  <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider w-20" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                    Invoice
+                  </th>
+                  <th className="px-1 py-3 text-left text-xs font-semibold uppercase tracking-wider w-32" style={{ color: 'hsl(45, 100%, 20%)' }}>
                     Name
                   </th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                  <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider w-24" style={{ color: 'hsl(45, 100%, 20%)' }}>
                     Room
                   </th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                  <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider w-20 hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
                     Category
                   </th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                  <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider w-20 hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                    Extra
+                  </th>
+                  <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider w-20 hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
                     Check In
                   </th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                  <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider w-20 hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
                     Check Out
                   </th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                  <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider w-24" style={{ color: 'hsl(45, 100%, 20%)' }}>
                     Status
                   </th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-xs font-semibold uppercase tracking-wider hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                  {paginatedBookings.some(booking => booking._raw?.amendmentHistory && booking._raw.amendmentHistory.length > 0) && (
+                    <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider w-16 hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                      Amended
+                    </th>
+                  )}
+                  <th className="px-2 py-3 text-left text-xs font-semibold uppercase tracking-wider w-20 hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
                     Payment
                   </th>
-                  <th className="px-2 sm:px-4 py-3 text-center text-xs font-semibold uppercase tracking-wider" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                  <th className="px-2 py-3 text-center text-xs font-semibold uppercase tracking-wider w-32" style={{ color: 'hsl(45, 100%, 20%)' }}>
                     Actions
                   </th>
                 </tr>
               </thead>
               <tbody className="divide-y" style={{ backgroundColor: 'white', borderColor: 'hsl(45, 100%, 90%)' }}>
-                {paginatedBookings.map((booking) => (
+                {paginatedBookings.map((booking, index) => (
                   <tr
                     key={booking.id}
-                    className="transition-colors duration-200"
+                    className="transition-colors duration-200 animate-fadeInUp"
+                    style={{animationDelay: `${Math.min(index * 50 + 400, 800)}ms`}}
                   >
-                    <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-sm" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                    <td className="px-2 py-3 whitespace-nowrap text-xs" style={{ color: 'hsl(45, 100%, 20%)' }}>
                       {booking.grcNo}
                     </td>
-                    <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-sm" style={{ color: 'hsl(45, 100%, 20%)' }}>
-                      {booking.name}
+                    <td className="px-2 py-3 whitespace-nowrap text-xs" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                      <div className="truncate" title={booking._raw?.invoiceNumber}>{booking._raw?.invoiceNumber || 'N/A'}</div>
                     </td>
-                    <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-sm" style={{ color: 'hsl(45, 100%, 20%)' }}>
-                      {booking.roomNumber}
+                    <td className="px-1 py-3 text-sm" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                      <div className="truncate" title={booking.name}>{booking.name}</div>
                     </td>
-                    <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-sm hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
-                      {booking.category}
+                    <td className="px-2 py-3 text-xs" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                      {booking.roomNumber.includes(',') ? (
+                        <div className="flex flex-wrap gap-1">
+                          {booking.roomNumber.split(',').slice(0, 2).map((room, idx) => (
+                            <span key={idx} className="inline-block bg-blue-100 text-blue-800 text-xs px-1 py-0.5 rounded">
+                              {room.trim()}
+                            </span>
+                          ))}
+                          {booking.roomNumber.split(',').length > 2 && (
+                            <span className="text-xs text-gray-500">+{booking.roomNumber.split(',').length - 2}</span>
+                          )}
+                        </div>
+                      ) : (
+                        booking.roomNumber
+                      )}
                     </td>
-                    <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-sm hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                    <td className="px-2 py-3 whitespace-nowrap text-xs hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                      <div className="truncate" title={booking.category}>{booking.category}</div>
+                    </td>
+                    <td className="px-2 py-3 text-xs hidden lg:table-cell">
+                      {booking.extraBedRooms && booking.extraBedRooms.length > 0 ? (
+                        <span className="text-green-600">{booking.extraBedRooms.length}</span>
+                      ) : (
+                        <span className="text-gray-400">-</span>
+                      )}
+                    </td>
+                    <td className="px-2 py-3 whitespace-nowrap text-xs hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
                       {booking.checkIn}
                     </td>
-                    <td className="px-2 sm:px-4 py-3 whitespace-nowrap text-sm hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                    <td className="px-2 py-3 whitespace-nowrap text-xs hidden lg:table-cell" style={{ color: 'hsl(45, 100%, 20%)' }}>
                       {booking.checkOut}
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    <td className="px-2 py-3 whitespace-nowrap">
                       <select
                         value={booking.status}
-                        onChange={(e) => updateBookingStatus(booking.id, e.target.value)}
-                        className={`px-2 py-1 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                        onChange={(e) => {
+                          if (confirm(`Are you sure you want to change booking status to "${e.target.value}"?`)) {
+                            updateBookingStatus(booking.id, e.target.value);
+                          }
+                        }}
+                        disabled={booking.status === 'Checked Out'}
+                        className={`px-1 py-1 rounded border text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 w-full ${
+                          booking.status === 'Checked Out' ? 'cursor-not-allowed opacity-60' : ''
+                        } ${
                           booking.status === "Booked"
                             ? "bg-green-100 text-green-800 border-green-300"
                             : booking.status === "Cancelled"
@@ -539,16 +504,37 @@ const BookingPage = () => {
                         <option value="Cancelled">Cancelled</option>
                       </select>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    {paginatedBookings.some(booking => booking._raw?.amendmentHistory && booking._raw.amendmentHistory.length > 0) && (
+                      <td className="px-2 py-3 text-center text-xs hidden lg:table-cell">
+                        {booking._raw?.amendmentHistory && booking._raw.amendmentHistory.length > 0 ? (
+                          <button
+                            onClick={() => {
+                              alert(`Amendment History:\n${booking._raw.amendmentHistory.map((a, i) => 
+                                `${i+1}. ${new Date(a.amendedOn).toLocaleDateString()}: Extended to ${new Date(a.newCheckOut).toLocaleDateString()} (₹${a.totalAdjustment || 0})`
+                              ).join('\n')}`);
+                            }}
+                            className="bg-orange-100 text-orange-800 px-1 py-0.5 rounded text-xs hover:bg-orange-200"
+                            title="View amendment history"
+                          >
+                            {booking._raw.amendmentHistory.length}x
+                          </button>
+                        ) : (
+                          <span className="text-gray-400">-</span>
+                        )}
+                      </td>
+                    )}
+                    <td className="px-2 py-3 whitespace-nowrap hidden lg:table-cell">
                       <select
                         value={booking.status === "Checked Out" ? "Paid" : booking.paymentStatus}
                         onChange={(e) => {
-                          updatePaymentStatus(booking.id, e.target.value);
-                          if (e.target.value === "Paid") {
-                            updateBookingStatus(booking.id, "Checked Out");
+                          if (confirm(`Are you sure you want to change payment status to "${e.target.value}"?`)) {
+                            updatePaymentStatus(booking.id, e.target.value);
                           }
                         }}
-                        className="px-2 py-1 rounded border border-gray-300 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 w-full"
+                        disabled={booking.status === 'Checked Out'}
+                        className={`px-1 py-1 rounded border border-gray-300 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 w-full ${
+                          booking.status === 'Checked Out' ? 'cursor-not-allowed opacity-60' : ''
+                        }`}
                       >
                         <option value="Pending">Pending</option>
                         <option value="Paid">Paid</option>
@@ -556,46 +542,87 @@ const BookingPage = () => {
                         <option value="Partial">Partial</option>
                       </select>
                     </td>
-                    <td className="px-4 py-3 whitespace-nowrap text-center">
-                      <div className="flex space-x-1 justify-center items-center">
-                        <button
-                          onClick={() => navigate('/edit-booking', { state: { editBooking: booking._raw } })}
-                          title="Edit Booking"
-                          className="p-1.5 rounded-full text-blue-600 transition duration-300"
-                        >
-                          <Edit size={16} />
-                        </button>
+                    <td className="px-2 py-3">
+                      <div className="flex flex-col gap-1 items-center">
+                        <div className="flex gap-1 justify-center">
+                          <button
+                            onClick={() => navigate(`/booking-details/${booking._raw?.bookingNo || booking.id}`)}
+                            title="View"
+                            className="p-1 rounded transition duration-300 text-indigo-600 hover:bg-indigo-50"
+                          >
+                            <Eye size={12} />
+                          </button>
 
-                        <button
-                          onClick={() => handleAmendBooking(booking.id)}
-                          title="Amend Booking Stay"
-                          className="p-1.5 rounded-full text-orange-600 transition duration-300"
-                        >
-                          <Calendar size={16} />
-                        </button>
+                          <button
+                            onClick={() => navigate(`/edit-booking/${booking._raw?.grcNo || booking.id}`, { state: { editBooking: booking._raw } })}
+                            title="Edit"
+                            className="p-1 rounded transition duration-300 text-blue-600 hover:bg-blue-50"
+                          >
+                            <Edit size={12} />
+                          </button>
 
-                        {booking.status === "Checked Out" && (
+                          <button
+                            onClick={() => openAmendModal(booking.id)}
+                            disabled={booking.status === 'Checked Out'}
+                            title="Amend"
+                            className={`p-1 rounded transition duration-300 ${
+                              booking.status === 'Checked Out' 
+                                ? 'text-gray-400 cursor-not-allowed' 
+                                : 'text-orange-600 hover:bg-orange-50'
+                            }`}
+                          >
+                            <Calendar size={12} />
+                          </button>
+
                           <button
                             onClick={() => generateInvoice(booking.id)}
-                            title="Generate Bill"
-                            className="p-1.5 rounded-full text-green-600 transition duration-300"
+                            disabled={generatingInvoice}
+                            title="Bill"
+                            className={`p-1 rounded transition duration-300 ${
+                              generatingInvoice ? 'text-gray-400 cursor-not-allowed' : 'text-green-600 hover:bg-green-50'
+                            }`}
                           >
-                            <FileText size={16} />
+                            <FileText size={12} />
                           </button>
-                        )}
-                        <button
-                          onClick={() => navigate('/checkout')}
-                          className="bg-purple-600 text-white px-2 py-1 rounded text-xs transition duration-300"
-                        >
-                          Checkout
-                        </button>
-                        <button
-                          onClick={() => deleteBooking(booking.id)}
-                          title="Delete Booking"
-                          className="p-1.5 rounded-full text-red-600 transition duration-300"
-                        >
-                          <Trash2 size={16} />
-                        </button>
+                          
+                          {hasRole('ADMIN') && (
+                            <button
+                              onClick={() => deleteBooking(booking.id)}
+                              title="Delete"
+                              className="p-1 rounded text-red-600 transition duration-300 hover:bg-red-50"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          )}
+                        </div>
+                        
+                        <div>
+                          {booking.status === 'Booked' && (
+                            <button
+                              onClick={() => {
+                                if (confirm(`CHECK-IN CONFIRMATION\n\nGuest: ${booking.name}\nGRC No: ${booking.grcNo}\nRoom: ${booking.roomNumber}\n\nAre you sure you want to check in this guest?`)) {
+                                  updateBookingStatus(booking.id, 'Checked In');
+                                }
+                              }}
+                              className="bg-blue-600 text-white px-2 py-1 rounded text-xs transition duration-300 hover:bg-blue-700"
+                            >
+                              Check In
+                            </button>
+                          )}
+                          {booking.status === 'Checked In' && (
+                            <button
+                              onClick={() => openCheckout(booking.id)}
+                              className="bg-purple-600 text-white px-2 py-1 rounded text-xs transition duration-300 hover:bg-purple-700"
+                            >
+                              Checkout
+                            </button>
+                          )}
+                          {booking.status === 'Checked Out' && (
+                            <span className="bg-gray-400 text-white px-2 py-1 rounded text-xs">
+                              Checked Out
+                            </span>
+                          )}
+                        </div>
                       </div>
                     </td>
                   </tr>
@@ -607,16 +634,17 @@ const BookingPage = () => {
 
         {/* Mobile Card View */}
         <div className="md:hidden space-y-4">
-          {paginatedBookings.map((booking) => (
+          {paginatedBookings.map((booking, index) => (
             <div
               key={booking.id}
-              className="rounded-lg shadow-md p-4"
-              style={{ backgroundColor: 'white', border: '1px solid hsl(45, 100%, 85%)' }}
+              className="rounded-lg shadow-md p-4 bg-white animate-scaleIn"
+              style={{ border: '1px solid hsl(45, 100%, 85%)', animationDelay: `${Math.min(index * 100 + 300, 700)}ms` }}
             >
               <div className="flex justify-between items-start mb-3">
                 <div>
                   <h3 className="font-semibold text-lg" style={{ color: 'hsl(45, 100%, 20%)' }}>{booking.name}</h3>
                   <p className="text-sm" style={{ color: 'hsl(45, 100%, 40%)' }}>GRC: {booking.grcNo}</p>
+                  <p className="text-sm" style={{ color: 'hsl(45, 100%, 40%)' }}>Invoice: {booking._raw?.invoiceNumber || 'N/A'}</p>
                 </div>
                 <span
                   className={`px-2 py-1 rounded-full text-xs font-medium ${
@@ -635,12 +663,40 @@ const BookingPage = () => {
               
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3 text-sm">
                 <div>
-                  <span style={{ color: 'hsl(45, 100%, 40%)' }}>Room:</span>
-                  <span className="ml-1 font-medium" style={{ color: 'hsl(45, 100%, 20%)' }}>{booking.roomNumber}</span>
+                  <span style={{ color: 'hsl(45, 100%, 40%)' }}>Room{booking.roomNumber.includes(',') ? 's' : ''}:</span>
+                  <div className="ml-1 font-medium" style={{ color: 'hsl(45, 100%, 20%)' }}>
+                    {booking.roomNumber.includes(',') ? (
+                      <div className="flex flex-wrap gap-1 mt-1">
+                        {booking.roomNumber.split(',').map((room, idx) => (
+                          <span key={idx} className="inline-block bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">
+                            {room.trim()}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      booking.roomNumber
+                    )}
+                  </div>
                 </div>
                 <div>
                   <span style={{ color: 'hsl(45, 100%, 40%)' }}>Category:</span>
                   <span className="ml-1 font-medium" style={{ color: 'hsl(45, 100%, 20%)' }}>{booking.category}</span>
+                </div>
+                <div>
+                  <span style={{ color: 'hsl(45, 100%, 40%)' }}>Extra Bed Rooms:</span>
+                  <div className="ml-1 mt-1">
+                    {booking.extraBedRooms && booking.extraBedRooms.length > 0 ? (
+                      <div className="flex flex-wrap gap-1">
+                        {booking.extraBedRooms.map((room, idx) => (
+                          <span key={idx} className="inline-block bg-green-100 text-green-800 text-xs px-2 py-1 rounded">
+                            {room}
+                          </span>
+                        ))}
+                      </div>
+                    ) : (
+                      <span className="text-gray-500 text-xs">None</span>
+                    )}
+                  </div>
                 </div>
                 <div>
                   <span style={{ color: 'hsl(45, 100%, 40%)' }}>Check In:</span>
@@ -651,11 +707,43 @@ const BookingPage = () => {
                   <span className="ml-1 font-medium" style={{ color: 'hsl(45, 100%, 20%)' }}>{booking.checkOut}</span>
                 </div>
                 <div>
+                  <span style={{ color: 'hsl(45, 100%, 40%)' }}>Amended:</span>
+                  <div className="ml-1">
+                    {booking._raw?.amendmentHistory && booking._raw.amendmentHistory.length > 0 ? (
+                      <div className="flex items-center">
+                        <span className="inline-block bg-orange-100 text-orange-800 text-xs px-2 py-1 rounded">
+                          {booking._raw.amendmentHistory.length}x
+                        </span>
+                        <button
+                          onClick={() => {
+                            alert(`Amendment History:\n${booking._raw.amendmentHistory.map((a, i) => 
+                              `${i+1}. ${new Date(a.amendedOn).toLocaleDateString()}: Extended to ${new Date(a.newCheckOut).toLocaleDateString()} (₹${a.totalAdjustment || 0})`
+                            ).join('\n')}`);
+                          }}
+                          className="ml-1 text-orange-600 hover:text-orange-800 text-xs"
+                          title="View amendment history"
+                        >
+                          ℹ️
+                        </button>
+                      </div>
+                    ) : (
+                      <span className="text-gray-500 text-xs">None</span>
+                    )}
+                  </div>
+                </div>
+                <div>
                   <span style={{ color: 'hsl(45, 100%, 40%)' }}>Payment:</span>
                   <select
                     value={booking.status === "Checked Out" ? "Paid" : booking.paymentStatus}
-                    onChange={(e) => updatePaymentStatus(booking.id, e.target.value)}
-                    className="ml-1 px-2 py-1 rounded border border-gray-300 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500"
+                    onChange={(e) => {
+                      if (confirm(`Are you sure you want to change payment status to "${e.target.value}"?`)) {
+                        updatePaymentStatus(booking.id, e.target.value);
+                      }
+                    }}
+                    disabled={booking.status === 'Checked Out'}
+                    className={`ml-1 px-2 py-1 rounded border border-gray-300 text-xs focus:outline-none focus:ring-1 focus:ring-blue-500 ${
+                      booking.status === 'Checked Out' ? 'cursor-not-allowed opacity-60' : ''
+                    }`}
                   >
                     <option value="Pending">Pending</option>
                     <option value="Paid">Paid</option>
@@ -667,7 +755,16 @@ const BookingPage = () => {
               
               <div className="flex flex-col sm:flex-row justify-end gap-2 pt-3 border-t" style={{ borderColor: 'hsl(45, 100%, 90%)' }}>
                 <button
-                  onClick={() => navigate('/edit-booking', { state: { editBooking: booking._raw } })}
+                  onClick={() => navigate(`/booking-details/${booking._raw?.bookingNo || booking.id}`)}
+                  className="p-2 rounded-full transition duration-300"
+                  style={{ color: '#6366F1' }}
+                  title="View Details"
+                >
+                  <Eye size={18} />
+                </button>
+
+                <button
+                  onClick={() => navigate(`/edit-booking/${booking._raw?.grcNo || booking.id}`, { state: { editBooking: booking._raw } })}
                   className="p-2 rounded-full transition duration-300"
                   style={{ color: 'hsl(45, 43%, 58%)' }}
                   title="Edit"
@@ -676,50 +773,88 @@ const BookingPage = () => {
                 </button>
 
                 <button
-                  onClick={() => handleAmendBooking(booking.id)}
-                  className="p-2 rounded-full transition duration-300"
-                  style={{ color: 'hsl(25, 95%, 53%)' }}
-                  title="Amend Stay"
+                  onClick={() => openAmendModal(booking.id)}
+                  disabled={booking.status === 'Checked Out'}
+                  className={`p-2 rounded-full transition duration-300 ${
+                    booking.status === 'Checked Out' 
+                      ? 'cursor-not-allowed' 
+                      : ''
+                  }`}
+                  style={{ 
+                    color: booking.status === 'Checked Out' 
+                      ? '#9CA3AF' 
+                      : '#EA580C' 
+                  }}
+                  title={booking.status === 'Checked Out' ? 'Cannot amend checked out booking' : 'Amend Stay'}
                 >
                   <Calendar size={18} />
                 </button>
 
-                {booking.status === "Checked Out" && (
+                <button
+                  onClick={() => generateInvoice(booking.id)}
+                  disabled={generatingInvoice}
+                  className={`p-2 rounded-full transition duration-300 ${
+                    generatingInvoice ? 'cursor-not-allowed' : ''
+                  }`}
+                  style={{ color: generatingInvoice ? '#9CA3AF' : 'hsl(120, 60%, 40%)' }}
+                  title={generatingInvoice ? "Generating..." : "Generate Bill"}
+                >
+                  <FileText size={18} />
+                </button>
+                {booking.status === 'Booked' && (
                   <button
-                    onClick={() => generateInvoice(booking.id)}
-                    className="p-2 rounded-full transition duration-300"
-                    style={{ color: 'hsl(120, 60%, 40%)' }}
-                    title="Invoice"
+                    onClick={() => {
+                      if (confirm(`CHECK-IN CONFIRMATION\n\nGuest: ${booking.name}\nGRC No: ${booking.grcNo}\nRoom: ${booking.roomNumber}\n\nAre you sure you want to check in this guest?`)) {
+                        updateBookingStatus(booking.id, 'Checked In');
+                      }
+                    }}
+                    className="px-3 py-1 rounded text-sm transition duration-300"
+                    style={{ backgroundColor: 'hsl(200, 60%, 50%)', color: 'white' }}
                   >
-                    <FileText size={18} />
+                    Check In
                   </button>
                 )}
-                <button
-                  onClick={() => navigate('/checkout')}
-                  className="px-3 py-1 rounded text-sm transition duration-300"
-                  style={{ backgroundColor: 'hsl(45, 71%, 69%)', color: 'hsl(45, 100%, 20%)' }}
-                >
-                  Checkout
-                </button>
-                <button
-                  onClick={() => deleteBooking(booking.id)}
-                  className="p-2 rounded-full transition duration-300"
-                  style={{ color: 'hsl(0, 60%, 50%)' }}
-                  title="Delete"
-                >
-                  <Trash2 size={18} />
-                </button>
+                {booking.status === 'Checked In' && (
+                  <button
+                    onClick={() => openCheckout(booking.id)}
+                    className="px-3 py-1 rounded text-sm transition duration-300"
+                    style={{ backgroundColor: 'hsl(45, 71%, 69%)', color: 'hsl(45, 100%, 20%)' }}
+                  >
+                    Checkout
+                  </button>
+                )}
+                {booking.status === 'Checked Out' && (
+                  <button
+                    disabled
+                    className="px-3 py-1 rounded text-sm cursor-not-allowed"
+                    style={{ backgroundColor: '#9CA3AF', color: '#6B7280' }}
+                  >
+                    Checked Out
+                  </button>
+                )}
+                {hasRole('ADMIN') && (
+                  <button
+                    onClick={() => deleteBooking(booking.id)}
+                    className="p-2 rounded-full transition duration-300"
+                    style={{ color: 'hsl(0, 60%, 50%)' }}
+                    title="Delete"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                )}
               </div>
             </div>
           ))}
           </div>
-          <Pagination
-            currentPage={currentPage}
-            totalPages={totalPages}
-            onPageChange={handlePageChange}
-            itemsPerPage={itemsPerPage}
-            totalItems={filteredBookings.length}
-          />
+          <div className="animate-fadeInUp animate-delay-300">
+            <Pagination
+              currentPage={currentPage}
+              totalPages={totalPages}
+              onPageChange={handlePageChange}
+              itemsPerPage={10}
+              totalItems={bookings.length}
+            />
+          </div>
         </>
       )}
 
@@ -798,14 +933,29 @@ const BookingPage = () => {
         </div>
       )}
 
+      {/* Checkout Modal */}
+      {showCheckout && selectedBookingForCheckout && (
+        <HotelCheckout
+          booking={selectedBookingForCheckout}
+          onClose={() => {
+            setShowCheckout(false);
+            setSelectedBookingForCheckout(null);
+          }}
+          onCheckoutComplete={handleCheckoutComplete}
+        />
+      )}
+
       {/* Amendment Modal */}
-      {showAmendModal && (
-        <div className="fixed inset-0 bg-black/40 backdrop-blur-sm z-50 flex justify-center items-center p-4">
+      {showAmendModal && selectedBookingForAmend && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-lg shadow-xl max-w-md w-full p-6">
             <div className="flex items-center justify-between mb-4">
               <h3 className="text-lg font-semibold text-gray-900">Amend Booking Stay</h3>
               <button
-                onClick={() => setShowAmendModal(false)}
+                onClick={() => {
+                  setShowAmendModal(false);
+                  setSelectedBookingForAmend(null);
+                }}
                 className="text-gray-400 hover:text-gray-600"
               >
                 <X size={20} />
@@ -815,65 +965,106 @@ const BookingPage = () => {
             <div className="space-y-4">
               <div className="bg-blue-50 p-3 rounded-lg">
                 <p className="text-sm text-blue-800">
-                  <strong>Current Booking:</strong><br />
-                  {(() => {
-                    const booking = bookings.find(b => b.id === amendBookingId);
-                    return booking ? (
-                      <>
-                        Guest: {booking.name}<br />
-                        Room: {booking.roomNumber}<br />
-                        Check-out: {booking.checkOut}
-                      </>
-                    ) : 'Booking not found';
-                  })()}
+                  <strong>Current Stay:</strong><br />
+                  Guest: {selectedBookingForAmend.name}<br />
+                  Room: {selectedBookingForAmend.roomNumber}<br />
+                  Check-in: {selectedBookingForAmend.checkIn} (Fixed)<br />
+                  Check-out: {selectedBookingForAmend.checkOut}<br />
+                  <span className="text-xs">Amendments made: {selectedBookingForAmend._raw?.amendmentHistory?.length || 0}/3</span>
                 </p>
               </div>
               
+              {selectedBookingForAmend._raw?.amendmentHistory && selectedBookingForAmend._raw.amendmentHistory.length > 0 && (
+                <div className="bg-yellow-50 p-3 rounded-lg">
+                  <p className="text-sm text-yellow-800 font-medium mb-2">Previous Amendments:</p>
+                  {selectedBookingForAmend._raw.amendmentHistory.slice(-2).map((amendment, index) => (
+                    <div key={index} className="text-xs text-yellow-700 mb-1">
+                      {new Date(amendment.amendedOn).toLocaleDateString()}: Extended to {new Date(amendment.newCheckOut).toLocaleDateString()} (₹{amendment.totalAdjustment || 0})
+                    </div>
+                  ))}
+                  {selectedBookingForAmend._raw.amendmentHistory.length > 2 && (
+                    <div className="text-xs text-yellow-600 mt-1">
+                      ... and {selectedBookingForAmend._raw.amendmentHistory.length - 2} more
+                    </div>
+                  )}
+                </div>
+              )}
+              
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  New Check-out Date <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-sm font-medium text-gray-700">New Check-out Date</label>
                 <input
                   type="date"
-                  value={amendmentData.newCheckOut}
-                  onChange={(e) => setAmendmentData(prev => ({ ...prev, newCheckOut: e.target.value }))}
+                  value={amendmentData.newCheckOutDate}
+                  min={selectedBookingForAmend.checkIn}
+                  onChange={(e) => {
+                    const selectedDate = e.target.value;
+                    if (conflictingDates.includes(selectedDate)) {
+                      setError(`Room is not available on ${new Date(selectedDate).toLocaleDateString()}. Please select another date.`);
+                      return;
+                    }
+                    setError(null);
+                    setAmendmentData(prev => ({ ...prev, newCheckOutDate: selectedDate }));
+                  }}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   required
                 />
+                {conflictingDates.length > 0 && (
+                  <p className="text-xs text-red-600">
+                    Room unavailable on: {conflictingDates.slice(0, 5).map(d => new Date(d).toLocaleDateString()).join(', ')}
+                    {conflictingDates.length > 5 && ` and ${conflictingDates.length - 5} more dates`}
+                  </p>
+                )}
               </div>
               
               <div className="space-y-2">
-                <label className="block text-sm font-medium text-gray-700">
-                  Reason for Amendment <span className="text-red-500">*</span>
-                </label>
+                <label className="block text-sm font-medium text-gray-700">Reason for Amendment</label>
                 <textarea
                   value={amendmentData.reason}
                   onChange={(e) => setAmendmentData(prev => ({ ...prev, reason: e.target.value }))}
                   className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
                   rows="3"
                   placeholder="Enter reason for date change..."
-                  required
                 />
               </div>
+              
+              {amendmentData.newCheckOutDate && (
+                <div className="bg-green-50 p-3 rounded-lg">
+                  <p className="text-sm text-green-800">
+                    <strong>New Stay:</strong><br />
+                    Check-in: {selectedBookingForAmend.checkIn} (Same)<br />
+                    Check-out: {new Date(amendmentData.newCheckOutDate).toLocaleDateString()}<br />
+                    Duration: {Math.ceil((new Date(amendmentData.newCheckOutDate) - new Date(selectedBookingForAmend.checkIn)) / (1000 * 60 * 60 * 24))} days
+                  </p>
+                </div>
+              )}
             </div>
             
             <div className="flex justify-end gap-3 mt-6">
               <button
-                onClick={() => setShowAmendModal(false)}
-                className="px-4 py-2 text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200 transition-colors"
+                onClick={() => {
+                  setShowAmendModal(false);
+                  setSelectedBookingForAmend(null);
+                }}
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
               >
                 Cancel
               </button>
               <button
-                onClick={submitAmendment}
-                className="px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700 transition-colors"
+                onClick={handleAmendStay}
+                disabled={amendingStay}
+                className={`px-4 py-2 text-white rounded-md transition-colors ${
+                  amendingStay 
+                    ? 'bg-gray-400 cursor-not-allowed' 
+                    : 'bg-orange-600 hover:bg-orange-700'
+                }`}
               >
-                Amend Stay
+                {amendingStay ? 'Amending...' : 'Amend Stay'}
               </button>
             </div>
           </div>
         </div>
       )}
+      </div>
     </div>
   );
 };

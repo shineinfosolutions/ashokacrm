@@ -3,7 +3,7 @@ import axios from 'axios';
 import toast from 'react-hot-toast';
 import MenuItemManager from '../../components/MenuItemManager';
 import PlanLimitManager from '../../components/PlanLimitManager';
-import useWebSocket from '../../../../hooks/useWebSocket';
+// import useWebSocket from '../../../../hooks/useWebSocket';
 import { FiWifi, FiWifiOff } from 'react-icons/fi';
 
 const AdminPanel = () => {
@@ -11,8 +11,10 @@ const AdminPanel = () => {
   const [initializing, setInitializing] = useState(false);
   const [realtimeActivity, setRealtimeActivity] = useState([]);
 
-  // WebSocket connection for real-time monitoring
-  const { lastMessage, readyState } = useWebSocket();
+  // WebSocket connection for real-time monitoring - DISABLED
+  // const { lastMessage, readyState } = useWebSocket();
+  const lastMessage = null;
+  const readyState = 0;
 
   // Handle real-time messages
   useEffect(() => {
@@ -46,7 +48,7 @@ const AdminPanel = () => {
   const initializeDefaults = async () => {
     try {
       setInitializing(true);
-      const response = await axios.post('https://ashoka-api.shineinfosolutions.in/api/plan-limits/initialize');
+      const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/plan-limits/initialize`);
       if (response.data.success) {
         toast.success(response.data.message);
       }

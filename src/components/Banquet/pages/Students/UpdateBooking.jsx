@@ -1,8 +1,7 @@
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import toast, { Toaster } from "react-hot-toast";
 import { Link, useNavigate, useParams } from "react-router-dom";
-import useWebSocket from '../../../../hooks/useWebSocket';
 import axios from "axios";
 import {
   FaUser,
@@ -75,9 +74,10 @@ const UpdateBooking = () => {
   const [showMenuModal, setShowMenuModal] = useState(false);
   const [loading, setLoading] = useState(false);
   const [menuLoading, setMenuLoading] = useState(false);
+  const [navigationTimeoutId, setNavigationTimeoutId] = useState(null);
+  const isMountedRef = useRef(true);
 
-  // WebSocket connection
-  const { sendMessage } = useWebSocket();
+
 
   // Staff edit limit logic (frontend) - define at component level so it's available in JSX
   const isStaffEditLimitReached =
@@ -98,6 +98,10 @@ const UpdateBooking = () => {
         basePrice: 1899,
         taxPercent: 18,
       },
+      "Premium Package": {
+        basePrice: 2500,
+        taxPercent: 18,
+      },
     },
     "Non-Veg": {
       Silver: {
@@ -110,6 +114,10 @@ const UpdateBooking = () => {
       },
       Platinum: {
         basePrice: 2299,
+        taxPercent: 18,
+      },
+      "Premium Package": {
+        basePrice: 3000,
         taxPercent: 18,
       },
     },
@@ -225,15 +233,25 @@ const UpdateBooking = () => {
     fetchBookingDetail();
   }, [id]);
 
+  // Cleanup navigation timeout on unmount
+  useEffect(() => {
+    return () => {
+      isMountedRef.current = false;
+      if (navigationTimeoutId) {
+        clearTimeout(navigationTimeoutId);
+      }
+    };
+  }, [navigationTimeoutId]);
+
   const fetchBookingDetail = async () => {
     try {
       // Fetch booking data
-      const bookingResponse = await axios.get(`https://ashoka-api.shineinfosolutions.in/api/banquet-bookings/get/${id}`);
+      const bookingResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/banquet-bookings/get/${id}`);
       
       // Fetch associated menu data
       let categorizedMenu = null;
       try {
-        const menuResponse = await axios.get(`https://ashoka-api.shineinfosolutions.in/api/banquet-menus/${id}`);
+        const menuResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/banquet-menus/${id}`);
         const rawMenuData = menuResponse.data?.data || menuResponse.data || null;
         categorizedMenu = rawMenuData?.categories || rawMenuData || null;
       } catch (menuErr) {
@@ -493,6 +511,7 @@ const UpdateBooking = () => {
   // --- Rate Plan Summary UI Helper ---
   const getCurrentRateInfo = () => {
     if (!booking.ratePlan || !booking.foodType) return null;
+    if (!RATE_CONFIG[booking.foodType] || !RATE_CONFIG[booking.foodType][booking.ratePlan]) return null;
     return RATE_CONFIG[booking.foodType][booking.ratePlan];
   };
   const currentRate = getCurrentRateInfo();
@@ -532,7 +551,7 @@ const UpdateBooking = () => {
     if (role !== "Admin") {
       // Get original menu from server to compare
       axios
-        .get(`https://ashoka-api.shineinfosolutions.in/api/banquet-bookings/get/${id}`)
+        .get(`${import.meta.env.VITE_API_URL}/api/banquet-bookings/get/${id}`)
         .then((res) => {
           const originalMenu = res.data.categorizedMenu;
           const isMenuChanged =
@@ -615,9 +634,9 @@ const UpdateBooking = () => {
 
 
     axios
-      .put(`https://ashoka-api.shineinfosolutions.in/api/banquet-bookings/update/${id}`, payload)
+      .put(`${import.meta.env.VITE_API_URL}/api/banquet-bookings/update/${id}`, payload)
       .then((res) => {
-        if (res.data) {
+        if (res.data && isMountedRef.current) {
           // Send WebSocket notification for real-time update
           sendMessage({
             type: 'BOOKING_UPDATED',
@@ -630,9 +649,12 @@ const UpdateBooking = () => {
 
           toast.success("Booking updated successfully!");
           setLoading(false);
-          setTimeout(() => {
-            navigate("/banquet/list-booking");
+          const timeoutId = setTimeout(() => {
+            if (isMountedRef.current) {
+              navigate("/banquet/list-booking");
+            }
           }, 600);
+          setNavigationTimeoutId(timeoutId);
         }
       })
       .catch((err) => {
@@ -1024,9 +1046,17 @@ const UpdateBooking = () => {
                 <label className="block text-sm font-medium text-gray-700">
                   Booking Status <span className="text-red-500">*</span>
                 </label>
-                <div className="w-full rounded-lg border border-gray-200 bg-gray-50 py-2 px-3 text-gray-700">
-                  {booking.bookingStatus}
-                </div>
+                <select
+                  name="bookingStatus"
+                  className="w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 py-2 px-3"
+                  onChange={handleInputChange}
+                  value={booking.bookingStatus}
+                >
+                  <option value="Tentative">Tentative</option>
+                  <option value="Confirmed">Confirmed</option>
+                  <option value="Enquiry">Enquiry</option>
+                  <option value="Cancelled">Cancelled</option>
+                </select>
               </div>
 
               {/* Rate Plan */}
@@ -1045,6 +1075,7 @@ const UpdateBooking = () => {
                   <option value="Silver">Silver</option>
                   <option value="Gold">Gold</option>
                   <option value="Platinum">Platinum</option>
+                  <option value="Premium Package">Premium Package</option>
                 </select>
               </div>
 

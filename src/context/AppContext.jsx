@@ -1,83 +1,61 @@
-import { createContext, useContext, useState, useEffect } from "react";
-import axios from "axios";
+import React, { createContext, useContext, useState } from 'react';
+import axios from 'axios';
 
-// Main axios instance
-const mainAxios = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || 'https://ashoka-api.shineinfosolutions.in',
-  withCredentials: true
-});
+const AppContext = createContext();
 
-// Use single axios instance for all requests
-const customAxios = {
-  get: (url, config) => mainAxios.get(url, config),
-  post: (url, data, config) => mainAxios.post(url, data, config),
-  put: (url, data, config) => mainAxios.put(url, data, config),
-  delete: (url, config) => mainAxios.delete(url, config),
-  patch: (url, data, config) => mainAxios.patch(url, data, config)
+export const useAppContext = () => {
+  const context = useContext(AppContext);
+  if (!context) {
+    throw new Error('useAppContext must be used within an AppProvider');
+  }
+  return context;
 };
 
-export const AppContext = createContext();
-
-export const useAppContext = () => useContext(AppContext);
-
-const AppContextProvider = ({ children }) => {
+export const AppProvider = ({ children }) => {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const toggleSidebar = () => {
-    setIsSidebarOpen(!isSidebarOpen);
-  };
+  const openSidebar = () => setIsSidebarOpen(true);
+  const closeSidebar = () => setIsSidebarOpen(false);
+  const toggleSidebar = () => setIsSidebarOpen(!isSidebarOpen);
 
-  const closeSidebar = () => {
-    setIsSidebarOpen(false);
-  };
+  // Configure axios with base URL and auth token
+  const axiosInstance = axios.create({
+    baseURL: import.meta.env.VITE_API_URL
+  });
 
-  const openSidebar = () => {
-    setIsSidebarOpen(true);
-  };
+  // Add token to all requests
+  axiosInstance.interceptors.request.use((config) => {
+    const token = localStorage.getItem('token');
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+  });
 
-  // Close sidebar when clicking outside on mobile
-  useEffect(() => {
-    const handleClickOutside = (event) => {
-      // Only run on mobile
-      if (window.innerWidth >= 768) return;
-
-      // Check if sidebar is open
-      if (!isSidebarOpen) return;
-
-      // Check if click is outside sidebar
-      const sidebar = document.querySelector("aside");
-      const hamburger = document.querySelector(
-        'button[aria-label="Toggle sidebar"]'
-      );
-
-      if (
-        sidebar &&
-        !sidebar.contains(event.target) &&
-        hamburger &&
-        !hamburger.contains(event.target)
-      ) {
-        closeSidebar();
+  // Handle response errors
+  axiosInstance.interceptors.response.use(
+    (response) => response,
+    (error) => {
+      if (error.response?.status === 401) {
+        localStorage.removeItem('token');
+        localStorage.removeItem('user');
+        window.location.href = '/login';
       }
-    };
-
-    document.addEventListener("mousedown", handleClickOutside);
-    document.addEventListener("touchstart", handleClickOutside);
-
-    return () => {
-      document.removeEventListener("mousedown", handleClickOutside);
-      document.removeEventListener("touchstart", handleClickOutside);
-    };
-  }, [isSidebarOpen]);
+      return Promise.reject(error);
+    }
+  );
 
   const value = {
     isSidebarOpen,
-    toggleSidebar,
-    closeSidebar,
     openSidebar,
-    axios: customAxios,
+    closeSidebar,
+    toggleSidebar,
+    axios: axiosInstance
   };
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+  return (
+    <AppContext.Provider value={value}>
+      {children}
+    </AppContext.Provider>
+  );
 };
-
-export default AppContextProvider;

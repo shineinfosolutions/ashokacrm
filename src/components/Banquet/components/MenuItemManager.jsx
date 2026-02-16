@@ -17,7 +17,7 @@ const MenuItemManager = () => {
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const response = await axios.get('/api/menu-items');
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/menu-items`);
       if (response.data.success) {
         setItems(response.data.data);
       }
@@ -30,7 +30,7 @@ const MenuItemManager = () => {
 
   const fetchCategories = async () => {
     try {
-      const response = await axios.get('/api/banquet-categories/all');
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/banquet-categories/all`);
       setCategories(response.data || []);
     } catch (error) {
       console.error('Failed to fetch categories:', error);
@@ -51,13 +51,13 @@ const MenuItemManager = () => {
 
     try {
       if (editingItem) {
-        const response = await axios.put(`/api/menu-items/${editingItem._id}`, form);
+        const response = await axios.put(`${import.meta.env.VITE_API_URL}/api/menu-items/${editingItem._id}`, form);
         if (response.data.success) {
           toast.success('Menu item updated successfully');
           setEditingItem(null);
         }
       } else {
-        const response = await axios.post('/api/menu-items', form);
+        const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/menu-items`, form);
         if (response.data.success) {
           toast.success('Menu item added successfully');
         }
@@ -78,9 +78,9 @@ const MenuItemManager = () => {
       if (item.category.length === 24 && /^[0-9a-fA-F]{24}$/.test(item.category)) {
         categoryId = item.category;
       } else {
-        const matchingCategory = categories.find(cat => 
+        const matchingCategory = Array.isArray(categories) ? categories.find(cat => 
           cat.cateName?.toLowerCase() === item.category.toLowerCase()
-        );
+        ) : null;
         categoryId = matchingCategory?._id || '';
       }
     } else if (item.category?._id) {
@@ -92,9 +92,9 @@ const MenuItemManager = () => {
     if (!categoryId) {
       const displayedCategory = typeof item.category === 'string' ? item.category : 
         item.category?.cateName || item.category?.name || '';
-      const matchingCategory = categories.find(cat => 
+      const matchingCategory = Array.isArray(categories) ? categories.find(cat => 
         cat.cateName?.toLowerCase() === displayedCategory.toLowerCase()
-      );
+      ) : null;
       categoryId = matchingCategory?._id || '';
     }
     
@@ -114,7 +114,7 @@ const MenuItemManager = () => {
     if (!confirm('Are you sure you want to delete this item?')) return;
 
     try {
-      await axios.delete(`/api/menu-items/${id}`);
+      await axios.delete(`${import.meta.env.VITE_API_URL}/api/menu-items/${id}`);
       toast.success('Menu item deleted successfully');
       fetchItems();
     } catch (error) {
@@ -147,9 +147,9 @@ const MenuItemManager = () => {
               required
             >
               <option value="">Select Category</option>
-              {categories.filter(cat => cat.status === 'active').map(cat => (
+              {Array.isArray(categories) ? categories.filter(cat => cat.status === 'active').map(cat => (
                 <option key={cat._id} value={cat._id}>{cat.cateName}</option>
-              ))}
+              )) : []}
             </select>
             <select
               value={form.foodType}

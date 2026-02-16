@@ -1,12 +1,42 @@
 import { useState, useEffect } from 'react';
 import { useAppContext } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import { showToast } from '../../utils/toaster';
 import Pagination from '../common/Pagination';
 import RegisterForm from '../auth/RegisterForm';
 import DashboardLoader from '../DashboardLoader';
 
+// Add CSS animations
+const styles = `
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .animate-fadeInUp { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; }
+  .animate-slideInLeft { opacity: 0; animation: slideInLeft 0.4s ease-out forwards; }
+  .animate-scaleIn { opacity: 0; animation: scaleIn 0.3s ease-out forwards; }
+  .animate-delay-100 { animation-delay: 0.1s; }
+  .animate-delay-200 { animation-delay: 0.2s; }
+  .animate-delay-300 { animation-delay: 0.3s; }
+`;
+
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = styles;
+  document.head.appendChild(styleSheet);
+}
+
 const Users = () => {
   const { axios } = useAppContext();
+  const { hasRole } = useAuth();
   const [users, setUsers] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredUsers, setFilteredUsers] = useState([]);
@@ -34,57 +64,15 @@ const Users = () => {
   const fetchUsers = async (page = 1) => {
     try {
       const token = localStorage.getItem('token');
-      // Try different endpoints based on user role
-      let endpoint = `/api/auth/all-users?page=${page}&limit=15`;
-      
-      // Fallback endpoints if main one fails
-      const fallbackEndpoints = [
-        `/api/users?page=${page}&limit=15`,
-        `/api/auth/users?page=${page}&limit=15`,
-        `/api/search/universal?query=&type=users`,
-        `/api/search/field?model=users&field=role&value=restaurant`,
-        `/api/search/field?model=users&field=role&value=admin`
-      ];
-      
-      let response;
-      try {
-        response = await axios.get(endpoint, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      } catch (error) {
-        if (error.response?.status === 403) {
-          // Try fallback endpoints
-          for (const fallback of fallbackEndpoints) {
-            try {
-              response = await axios.get(fallback, {
-                headers: { Authorization: `Bearer ${token}` }
-              });
-              break;
-            } catch (fallbackError) {
-              console.log(`Fallback ${fallback} failed:`, fallbackError.response?.status);
-            }
-          }
-        }
-        if (!response) throw error;
-      }
+      const response = await axios.get('/api/users/all');
       
       console.log('API Response:', response.data);
       
-      // Handle different response structures
-      let usersData = [];
-      if (Array.isArray(response.data)) {
-        usersData = response.data;
-      } else if (response.data.users && Array.isArray(response.data.users)) {
-        usersData = response.data.users;
-      } else if (response.data.data && Array.isArray(response.data.data)) {
-        usersData = response.data.data;
-      }
-
-      
-      setUsers(usersData);``
+      const usersData = response.data.users || [];
+      setUsers(usersData);
       setFilteredUsers(usersData);
-      setTotalPages(response.data.totalPages || Math.ceil(usersData.length / itemsPerPage));
-      setTotalUsers(response.data.totalUsers || usersData.length);
+      setTotalPages(Math.ceil(usersData.length / itemsPerPage));
+      setTotalUsers(usersData.length);
     } catch (error) {
       console.error('Error fetching users:', error);
       showToast.error('Failed to fetch users');
@@ -93,21 +81,15 @@ const Users = () => {
     }
   };
 
-  const handleSearch = async (e) => {
+  const handleSearch = (e) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      try {
-        const token = localStorage.getItem('token');
-        const response = await axios.get(`/api/search/universal?query=${searchQuery}&type=users`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        const searchResults = Array.isArray(response.data.users) ? response.data.users : [];
-        setFilteredUsers(searchResults);
-        setCurrentPage(1);
-      } catch (error) {
-        console.error('Error searching users:', error);
-        showToast.error('Failed to search users');
-      }
+      const filtered = users.filter(user => 
+        user.username?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.email?.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        user.role?.toLowerCase().includes(searchQuery.toLowerCase())
+      );
+      setFilteredUsers(filtered);
     } else {
       setFilteredUsers(users);
     }
@@ -129,18 +111,56 @@ const Users = () => {
   };
 
   const handleStatusToggle = async (userId, currentStatus) => {
+    // Update UI immediately
+    const newStatus = currentStatus === false ? true : false;
+    
+    setUsers(prevUsers => 
+      prevUsers.map(user => 
+        user._id === userId 
+          ? { ...user, isActive: newStatus }
+          : user
+      )
+    );
+    setFilteredUsers(prevUsers => 
+      prevUsers.map(user => 
+        user._id === userId 
+          ? { ...user, isActive: newStatus }
+          : user
+      )
+    );
+    
     try {
-      const token = localStorage.getItem('token');
-      await axios.patch(`/api/users/${userId}/status`, {
-        isActive: !currentStatus
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const response = await axios.patch(`/api/users/toggle-status/${userId}`);
       showToast.success('User status updated successfully!');
-      fetchUsers(currentPage);
+      
+      // If user was deactivated, broadcast to force logout
+      if (newStatus === false) {
+        // For cross-tab logout
+        localStorage.setItem('forceLogout', JSON.stringify({ userId, timestamp: Date.now() }));
+        localStorage.removeItem('forceLogout');
+        
+        // For same-tab logout
+        window.dispatchEvent(new CustomEvent('forceLogout', { detail: { userId } }));
+      }
     } catch (error) {
       console.error('Error updating user status:', error);
       showToast.error('Failed to update user status');
+      
+      // Revert the change on error
+      setUsers(prevUsers => 
+        prevUsers.map(user => 
+          user._id === userId 
+            ? { ...user, isActive: currentStatus }
+            : user
+        )
+      );
+      setFilteredUsers(prevUsers => 
+        prevUsers.map(user => 
+          user._id === userId 
+            ? { ...user, isActive: currentStatus }
+            : user
+        )
+      );
     }
   };
 
@@ -158,10 +178,7 @@ const Users = () => {
   const handleUpdate = async (e) => {
     e.preventDefault();
     try {
-      const token = localStorage.getItem('token');
-      await axios.put(`/api/auth/users/${editUser._id}`, editUser, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      await axios.put(`/api/users/update/${editUser._id}`, editUser);
       showToast.success('User updated successfully!');
       setShowEdit(false);
       fetchUsers(currentPage);
@@ -174,10 +191,7 @@ const Users = () => {
   const handleDelete = async (userId) => {
     if (window.confirm('Are you sure you want to delete this user?')) {
       try {
-        const token = localStorage.getItem('token');
-        await axios.delete(`/api/auth/users/${userId}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
+        await axios.delete(`/api/users/delete/${userId}`);
         showToast.success('User deleted successfully!');
         fetchUsers(currentPage);
       } catch (error) {
@@ -194,7 +208,7 @@ const Users = () => {
   return (
     <div className="p-6 bg-background min-h-screen">
       <div className="max-w-7xl mx-auto">
-        <div className="flex justify-between items-center mb-6">
+        <div className="flex justify-between items-center mb-6 animate-slideInLeft animate-delay-100">
           <h1 className="text-3xl font-bold text-text">All Users</h1>
           <button
             onClick={() => setShowRegister(true)}
@@ -206,7 +220,7 @@ const Users = () => {
         
 
         
-        <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+        <div className="bg-white rounded-lg shadow-lg overflow-hidden animate-fadeInUp animate-delay-200">
           <div className="p-6">
             <form onSubmit={handleSearch} className="mb-4">
               <div className="flex flex-col sm:flex-row gap-2 max-w-md">
@@ -242,7 +256,7 @@ const Users = () => {
                 </thead>
                 <tbody>
                   {filteredUsers.map((user, index) => (
-                    <tr key={user._id} className={index % 2 === 0 ? 'bg-background' : 'bg-white'}>
+                    <tr key={user._id} className={`${index % 2 === 0 ? 'bg-background' : 'bg-white'} animate-scaleIn`} style={{animationDelay: `${Math.min(index * 50 + 300, 800)}ms`}}>
                       <td className="px-4 py-3 text-sm text-text font-medium">{user.username}</td>
                       <td className="px-4 py-3 text-sm text-text">{user.name || 'N/A'}</td>
                       <td className="px-4 py-3 text-sm text-text">{user.email || 'N/A'}</td>
@@ -261,9 +275,18 @@ const Users = () => {
                         }
                       </td>
                       <td className="px-4 py-3">
-                        <span className={`px-2 py-1 rounded text-xs ${getStatusColor(user.isActive !== false)}`}>
-                          {user.isActive !== false ? 'Active' : 'Inactive'}
-                        </span>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={user.isActive !== false}
+                            onChange={() => handleStatusToggle(user._id, user.isActive)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-green-500"></div>
+                          <span className={`ml-3 text-sm font-medium ${user.isActive !== false ? 'text-green-600' : 'text-gray-500'}`}>
+                            {user.isActive !== false ? 'Active' : 'Inactive'}
+                          </span>
+                        </label>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex gap-1">
@@ -279,12 +302,14 @@ const Users = () => {
                           >
                             Edit
                           </button>
-                          <button
-                            onClick={() => handleDelete(user._id)}
-                            className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
-                          >
-                            Delete
-                          </button>
+                          {hasRole('ADMIN') && (
+                            <button
+                              onClick={() => handleDelete(user._id)}
+                              className="bg-red-500 text-white px-2 py-1 rounded text-xs hover:bg-red-600"
+                            >
+                              Delete
+                            </button>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -376,6 +401,30 @@ const Users = () => {
                     {showDetails.isActive !== false ? 'Active' : 'Inactive'}
                   </span>
                 </div>
+                
+                {showDetails.bankDetails && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600">Bank Details</label>
+                    <div className="text-gray-800 text-sm space-y-1">
+                      <p><strong>Account:</strong> {showDetails.bankDetails.accountNumber || 'N/A'}</p>
+                      <p><strong>IFSC:</strong> {showDetails.bankDetails.ifscCode || 'N/A'}</p>
+                      <p><strong>Bank:</strong> {showDetails.bankDetails.bankName || 'N/A'}</p>
+                      <p><strong>Holder:</strong> {showDetails.bankDetails.accountHolderName || 'N/A'}</p>
+                    </div>
+                  </div>
+                )}
+                
+                {showDetails.salaryDetails && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-600">Salary Details</label>
+                    <div className="text-gray-800 text-sm space-y-1">
+                      <p><strong>Basic:</strong> ₹{showDetails.salaryDetails.basicSalary || 0}</p>
+                      <p><strong>Allowances:</strong> ₹{showDetails.salaryDetails.allowances || 0}</p>
+                      <p><strong>Deductions:</strong> ₹{showDetails.salaryDetails.deductions || 0}</p>
+                      <p><strong>Net Salary:</strong> ₹{showDetails.salaryDetails.netSalary || 0}</p>
+                    </div>
+                  </div>
+                )}
                 
                 <div>
                   <label className="block text-sm font-medium text-gray-600">Created At</label>
@@ -476,6 +525,100 @@ const Users = () => {
                   placeholder="Leave blank to keep current password"
                 />
                 <p className="text-xs text-gray-500 mt-1">Leave empty if you don't want to change the password</p>
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium text-gray-600 mb-1">Status</label>
+                <div className="flex items-center space-x-3">
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="isActive"
+                      checked={editUser.isActive !== false}
+                      onChange={() => setEditUser({...editUser, isActive: true})}
+                      className="mr-2"
+                    />
+                    <span className="text-green-600 font-medium">Active</span>
+                  </label>
+                  <label className="flex items-center cursor-pointer">
+                    <input
+                      type="radio"
+                      name="isActive"
+                      checked={editUser.isActive === false}
+                      onChange={() => setEditUser({...editUser, isActive: false})}
+                      className="mr-2"
+                    />
+                    <span className="text-red-600 font-medium">Inactive</span>
+                  </label>
+                </div>
+              </div>
+              
+              <div className="border-t pt-4">
+                <h4 className="font-medium text-gray-700 mb-3">Bank Details</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="text"
+                    placeholder="Account Number"
+                    value={editUser.bankDetails?.accountNumber || ''}
+                    onChange={(e) => setEditUser({...editUser, bankDetails: {...editUser.bankDetails, accountNumber: e.target.value}})}
+                    className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="IFSC Code"
+                    value={editUser.bankDetails?.ifscCode || ''}
+                    onChange={(e) => setEditUser({...editUser, bankDetails: {...editUser.bankDetails, ifscCode: e.target.value}})}
+                    className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Bank Name"
+                    value={editUser.bankDetails?.bankName || ''}
+                    onChange={(e) => setEditUser({...editUser, bankDetails: {...editUser.bankDetails, bankName: e.target.value}})}
+                    className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Account Holder Name"
+                    value={editUser.bankDetails?.accountHolderName || ''}
+                    onChange={(e) => setEditUser({...editUser, bankDetails: {...editUser.bankDetails, accountHolderName: e.target.value}})}
+                    className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
+              </div>
+              
+              <div className="border-t pt-4">
+                <h4 className="font-medium text-gray-700 mb-3">Salary Details</h4>
+                <div className="grid grid-cols-2 gap-3">
+                  <input
+                    type="number"
+                    placeholder="Basic Salary"
+                    value={editUser.salaryDetails?.basicSalary || ''}
+                    onChange={(e) => setEditUser({...editUser, salaryDetails: {...editUser.salaryDetails, basicSalary: e.target.value}})}
+                    className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Allowances"
+                    value={editUser.salaryDetails?.allowances || ''}
+                    onChange={(e) => setEditUser({...editUser, salaryDetails: {...editUser.salaryDetails, allowances: e.target.value}})}
+                    className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Deductions"
+                    value={editUser.salaryDetails?.deductions || ''}
+                    onChange={(e) => setEditUser({...editUser, salaryDetails: {...editUser.salaryDetails, deductions: e.target.value}})}
+                    className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Net Salary"
+                    value={editUser.salaryDetails?.netSalary || ''}
+                    onChange={(e) => setEditUser({...editUser, salaryDetails: {...editUser.salaryDetails, netSalary: e.target.value}})}
+                    className="p-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                  />
+                </div>
               </div>
 
               <div className="flex justify-end space-x-3 pt-4">

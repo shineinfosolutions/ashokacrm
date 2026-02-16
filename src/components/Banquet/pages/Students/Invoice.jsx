@@ -3,7 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import axios from "axios";
 import { useReactToPrint } from "react-to-print";
 import Logo from "../../../../assets/logo.png";
-import WaterMark from "../../../../assets/WaterMark.png";
+// import WaterMark from "../../../../assets/WaterMark.png";
 import { useNavigate } from "react-router-dom";
 
 const Invoice = () => {
@@ -38,7 +38,7 @@ const Invoice = () => {
           left: 0 !important;
           right: 0 !important;
           bottom: 0 !important;
-          background-image: url('${WaterMark}') !important;
+          background-image: none !important;
           background-size: 80% !important;
           background-position: center !important;
           background-repeat: no-repeat !important;
@@ -73,7 +73,7 @@ const Invoice = () => {
     const fetchBooking = async () => {
       try {
         // Fetch booking data
-        const bookingRes = await axios.get(`https://ashoka-api.shineinfosolutions.in/api/banquet-bookings/get/${id}`);
+        const bookingRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/banquet-bookings/get/${id}`);
         console.log('Booking API Response:', bookingRes.data);
         if (bookingRes.data.error) {
           throw new Error(bookingRes.data.error);
@@ -84,7 +84,7 @@ const Invoice = () => {
         // Fetch menu data
         let categorizedMenu = null;
         try {
-          const menuRes = await axios.get(`https://ashoka-api.shineinfosolutions.in/api/banquet-menus/${id}`);
+          const menuRes = await axios.get(`${import.meta.env.VITE_API_URL}/api/banquet-menus/${id}`);
           console.log('Menu API Response:', menuRes.data);
           const rawMenuData = menuRes.data?.data || menuRes.data || null;
           categorizedMenu = rawMenuData?.categories || rawMenuData || null;
@@ -174,7 +174,7 @@ const Invoice = () => {
           ref={printRef}
           className="watermark-container bg-white shadow-lg rounded-lg overflow-hidden print:shadow-none print:rounded-none print:max-w-none print:m-0 print:p-4 print:text-xs print:leading-tight relative"
           style={{
-            backgroundImage: `url(${WaterMark})`,
+            backgroundImage: 'none',
             backgroundSize: '80%',
             backgroundPosition: 'center',
             backgroundRepeat: 'no-repeat'

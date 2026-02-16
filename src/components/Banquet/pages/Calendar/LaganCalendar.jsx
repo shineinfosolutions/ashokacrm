@@ -8,8 +8,7 @@ import {
 } from "react-icons/fa";
 import { useAppContext } from '../../../../context/AppContext';
 import DashboardLoader from '../../../DashboardLoader';
-import useWebSocket from '../../../../hooks/useWebSocket';
-import WebSocketStatus from '../../components/WebSocketStatus';
+import BookingCalendar from '../../../BookingCalendar';
 
 function LaganCalendar() {
   const { axios } = useAppContext();
@@ -41,6 +40,7 @@ function LaganCalendar() {
     notes: "",
   });
   const [bookings, setBookings] = useState({});
+  const [showBookingCalendar, setShowBookingCalendar] = useState(false);
   const calendarRef = useRef(null);
   const [selectedRange, setSelectedRange] = useState({
     start: null,
@@ -74,6 +74,10 @@ function LaganCalendar() {
     } else {
       alert("Please select a date first.");
     }
+  };
+
+  const handleViewBookingCalendar = () => {
+    setShowBookingCalendar(true);
   };
 
   const format = (y, m, d) =>
@@ -394,30 +398,13 @@ function LaganCalendar() {
   const [searchResults, setSearchResults] = useState(null); // null = no search, [] = no results
   const [searchLoading, setSearchLoading] = useState(false);
 
-  // WebSocket connection for real-time updates
-  const { lastMessage } = useWebSocket();
 
-  // Handle real-time booking updates
-  useEffect(() => {
-    if (lastMessage) {
-      switch (lastMessage.type) {
-        case 'BOOKING_CREATED':
-        case 'BOOKING_UPDATED':
-        case 'BOOKING_DELETED':
-          // Refresh bookings when any booking changes
-          fetchBookings();
-          break;
-        default:
-          break;
-      }
-    }
-  }, [lastMessage]);
 
   // Extract fetchBookings function to be reusable
   const fetchBookings = async () => {
     try {
       const res = await axios.get(
-        "/api/banquet-bookings/"
+        `${import.meta.env.VITE_API_URL}/api/banquet-bookings/`
       );
       const grouped = {};
       res.data.forEach((b) => {
@@ -458,65 +445,54 @@ function LaganCalendar() {
   return (
     <div
       ref={calendarRef}
-      className="p-4 md:p-8 text-center max-w-full overflow-x-auto bg-gradient-to-br from-amber-50 via-white to-yellow-50 font-sans min-h-screen"
+      className="p-4 md:p-8 text-center max-w-full overflow-x-auto font-sans min-h-screen"
+      style={{backgroundColor: 'hsl(45, 100%, 95%)'}}
     >
-      {/* Header with Ashoka colors */}
-      <div className=" p-1 rounded-xl mb-6 shadow-lg">
-        <div className="flex justify-between items-center">
-          {/* Show user role */}
-          {isMobile && (
-            <div className="w-full flex justify-center items-center">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-amber-100 to-yellow-100 font-semibold text-sm shadow" style={{ color: '#5D4037' }}>
-                {userRole === "Admin" ? "👑 Admin" : "👤 Staff"}
-              </span>
-            </div>
-          )}
+      {/* Header */}
+      <header className="bg-white shadow-sm rounded-xl mb-6" style={{border: '1px solid hsl(45, 100%, 85%)'}}>
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <h1 className="text-2xl font-bold" style={{color: 'hsl(45, 100%, 20%)'}}>
+            Event Calendar
+          </h1>
           {!isMobile && (
-            <div className="flex items-center justify-between w-full">
-              <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-gradient-to-r from-amber-100 to-yellow-100 font-semibold text-sm shadow" style={{ color: '#5D4037' }}>
-                {userRole === "Admin" ? "👑 Admin" : "👤 Staff"}
-              </span>
-              <WebSocketStatus />
-            </div>
+            <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full font-semibold text-sm shadow" style={{ backgroundColor: 'hsl(45, 100%, 90%)', color: 'hsl(45, 100%, 20%)' }}>
+              {userRole === "Admin" ? "👑 Admin" : "👤 Staff"}
+            </span>
           )}
         </div>
-      </div>
+      </header>
       
       {/* Navigation */}
       <div className="flex justify-between items-center mb-6">
         <button
           onClick={handlePrev}
           className="text-white px-6 py-3 rounded-lg shadow-md font-semibold transition-all duration-200 transform hover:scale-105"
-          style={{ background: 'linear-gradient(to right, #5D4037, #4A2C20)' }}
-          onMouseEnter={(e) => e.target.style.background = 'linear-gradient(to right, #4A2C20, #3E2723)'}
-          onMouseLeave={(e) => e.target.style.background = 'linear-gradient(to right, #5D4037, #4A2C20)'}
+          style={{ backgroundColor: 'hsl(45, 43%, 58%)' }}
         >
           ← Previous
         </button>
-        <h2 className="text-xl md:text-2xl font-bold mx-2" style={{ color: '#5D4037' }}>
+        <h2 className="text-xl md:text-2xl font-bold mx-2" style={{ color: 'hsl(45, 100%, 20%)' }}>
           {`${monthNames[month]} ${year}`}
         </h2>
         <button
           onClick={handleNext}
           className="text-white px-6 py-3 rounded-lg shadow-md font-semibold transition-all duration-200 transform hover:scale-105"
-          style={{ background: 'linear-gradient(to right, #FFB300, #FF8F00)' }}
-          onMouseEnter={(e) => e.target.style.background = 'linear-gradient(to right, #FF8F00, #FF6F00)'}
-          onMouseLeave={(e) => e.target.style.background = 'linear-gradient(to right, #FFB300, #FF8F00)'}
+          style={{ backgroundColor: 'hsl(45, 43%, 58%)' }}
         >
           Next →
         </button>
       </div>
       
       {/* Calendar */}
-      <div className="overflow-x-auto rounded-xl border-2 bg-white shadow-xl" style={{ borderColor: '#FFB300' }}>
+      <div className="overflow-x-auto rounded-xl bg-white shadow-xl" style={{ border: '2px solid hsl(45, 100%, 85%)' }}>
         <table className="w-full max-w-full border-collapse">
           <thead>
-            <tr className="bg-gradient-to-r from-amber-100 via-white to-yellow-100">
+            <tr style={{ backgroundColor: 'hsl(45, 100%, 90%)' }}>
               {["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"].map((day) => (
                 <th
                   key={day}
                   className="h-12 text-sm md:text-base font-bold border-b-2"
-                  style={{ color: '#5D4037', borderBottomColor: '#FFB300' }}
+                  style={{ color: 'hsl(45, 100%, 20%)', borderBottomColor: 'hsl(45, 100%, 85%)' }}
                 >
                   {day}
                 </th>
@@ -527,24 +503,34 @@ function LaganCalendar() {
         </table>
       </div>
 
-      <Link
-        to="/banquet/add-booking"
-        state={{ selectedDate }}
-        className="text-[#c3ad6b] hover:underline mt-4 inline-block"
-      >
-        <button
-          className={`py-3 px-12 mt-6 rounded-xl text-lg font-bold shadow-lg transition-all duration-200 transform ${
-            selectedDate
-              ? "hover:scale-105 hover:shadow-xl text-white"
-              : "bg-gray-300 cursor-not-allowed"
-          }`}
-          style={selectedDate ? { background: 'linear-gradient(to right, #5D4037, #FFB300)' } : {}}
-          disabled={!selectedDate}
-          onClick={handleBooking}
+      <div className="flex flex-col md:flex-row gap-4 items-center justify-center mt-6">
+        <Link
+          to="/banquet/add-booking"
+          state={{ selectedDate }}
+          className="text-[#c3ad6b] hover:underline"
         >
-          Book Now
+          <button
+            className={`py-3 px-12 rounded-xl text-lg font-bold shadow-lg transition-all duration-200 transform ${
+              selectedDate
+                ? "hover:scale-105 hover:shadow-xl text-white"
+                : "bg-gray-300 cursor-not-allowed"
+            }`}
+            style={selectedDate ? { background: 'linear-gradient(to right, #5D4037, #FFB300)' } : {}}
+            disabled={!selectedDate}
+            onClick={handleBooking}
+          >
+            Book Now
+          </button>
+        </Link>
+        
+        <button
+          onClick={handleViewBookingCalendar}
+          className="py-3 px-8 rounded-xl text-lg font-bold shadow-lg transition-all duration-200 transform hover:scale-105 hover:shadow-xl text-white"
+          style={{ backgroundColor: 'hsl(45, 43%, 58%)' }}
+        >
+          View Booking Calendar
         </button>
-      </Link>
+      </div>
       {/* Booking list for selected date with status filter */}
       <div className="mt-10 max-w-3xl mx-auto">
         <h3 className="text-xl font-bold text-gray-800 mb-6">
@@ -571,14 +557,14 @@ function LaganCalendar() {
             </span>
             <label
               htmlFor="statusFilter"
-              className="text-sm font-bold" style={{ color: '#5D4037' }}
+              className="text-sm font-bold" style={{ color: 'hsl(45, 100%, 20%)' }}
             >
               Status:
             </label>
             <select
               id="statusFilter"
               className="rounded-lg border-2 py-2 px-4 text-sm bg-white shadow-sm font-medium"
-              style={{ borderColor: '#FFB300' }}
+              style={{ borderColor: 'hsl(45, 100%, 85%)' }}
               value={statusFilter}
               onChange={(e) => setStatusFilter(e.target.value)}
             >
@@ -609,7 +595,7 @@ function LaganCalendar() {
             <input
               type="text"
               className="rounded-lg border-2 py-2 px-4 text-sm w-full md:w-64 bg-white shadow-sm"
-              style={{ borderColor: '#5D4037' }}
+              style={{ borderColor: 'hsl(45, 100%, 85%)' }}
               placeholder="Search by name or phone..."
               value={searchTerm}
               onChange={async (e) => {
@@ -622,7 +608,7 @@ function LaganCalendar() {
                 setSearchLoading(true);
                 try {
                   const resp = await axios.get(
-                    `/api/bookings/search?q=${encodeURIComponent(
+                    `${import.meta.env.VITE_API_URL}/api/bookings/search?q=${encodeURIComponent(
                       val
                     )}`
                   );
@@ -659,8 +645,8 @@ function LaganCalendar() {
             {displayBookings.map((b, i) => (
               <div
                 key={i}
-                className="bg-gradient-to-br from-amber-50 to-yellow-50 border-2 rounded-xl p-4 text-left hover:shadow-xl transition-all duration-200 transform hover:scale-105"
-                style={{ borderColor: '#FFB300' }}
+                className="bg-white border-2 rounded-xl p-4 text-left hover:shadow-xl transition-all duration-200 transform hover:scale-105"
+                style={{ borderColor: 'hsl(45, 100%, 85%)' }}
               >
                 <div className="font-bold text-gray-800">{b.name}</div>
                 <div className="text-xs text-gray-700">
@@ -678,7 +664,7 @@ function LaganCalendar() {
                       if (b._id) navigate(`/banquet/update-booking/${b._id}`);
                     }}
                     className="flex-1 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all duration-200 transform hover:scale-105 shadow-md"
-                    style={{ background: 'linear-gradient(to right, #5D4037, #4A2C20)' }}
+                    style={{ backgroundColor: 'hsl(45, 43%, 58%)' }}
                   >
                     Edit
                   </button>
@@ -687,7 +673,7 @@ function LaganCalendar() {
                       if (b._id) navigate(`/banquet/invoice/${b._id}`);
                     }}
                     className="flex-1 text-white px-3 py-2 rounded-lg text-sm font-bold transition-all duration-200 transform hover:scale-105 shadow-md"
-                    style={{ background: 'linear-gradient(to right, #FFB300, #FF8F00)' }}
+                    style={{ backgroundColor: 'hsl(45, 43%, 58%)' }}
                   >
                     Invoice
                   </button>
@@ -697,6 +683,13 @@ function LaganCalendar() {
           </div>
         )}
       </div>
+      
+      {/* BookingCalendar Modal */}
+      <BookingCalendar 
+        isOpen={showBookingCalendar} 
+        onClose={() => setShowBookingCalendar(false)}
+        bookingData={bookings}
+      />
     </div>
   );
 }

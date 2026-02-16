@@ -16,10 +16,15 @@ const SharedInvoice = () => {
   useEffect(() => {
     const fetchBooking = async () => {
       try {
-        const res = await axios.get(`https://ashoka-api.shineinfosolutions.in/api/banquet-bookings/${id}`);
+        const res = await axios.get(`${import.meta.env.VITE_API_URL}/api/banquet-bookings/${id}`);
+        if (!res.data) {
+          throw new Error('No booking data received');
+        }
         setBooking(res.data);
       } catch (error) {
-        setError("Failed to load booking details. Please try again later.");
+        console.error('Error fetching booking:', error);
+        const errorMessage = error.response?.data?.message || error.message || "Failed to load booking details. Please try again later.";
+        setError(errorMessage);
       } finally {
         setLoading(false);
       }
@@ -58,15 +63,25 @@ const SharedInvoice = () => {
     );
 
   const formatDate = (dateString) => {
-    return new Date(dateString).toLocaleDateString('en-IN', {
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric'
-    });
+    try {
+      return new Date(dateString).toLocaleDateString('en-IN', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric'
+      });
+    } catch (error) {
+      console.error('Error formatting date:', error);
+      return 'Invalid Date';
+    }
   };
 
   const handlePrint = () => {
-    window.print();
+    try {
+      window.print();
+    } catch (error) {
+      console.error('Error printing:', error);
+      alert('Failed to print invoice');
+    }
   };
 
   const generatePDF = async () => {
@@ -101,6 +116,7 @@ const SharedInvoice = () => {
       return pdf;
     } catch (error) {
       console.error('Error generating PDF:', error);
+      // amazonq-ignore-next-line
       alert('Error generating PDF');
       return null;
     } finally {
@@ -109,31 +125,52 @@ const SharedInvoice = () => {
   };
 
   const handleDownloadPDF = async () => {
-    const pdf = await generatePDF();
-    if (pdf) {
-      pdf.save(`Invoice_${booking.name}_${booking.startDate}.pdf`);
+    try {
+      const pdf = await generatePDF();
+      if (pdf) {
+        pdf.save(`Invoice_${booking.name}_${booking.startDate}.pdf`);
+      }
+    } catch (error) {
+      console.error('Error downloading PDF:', error);
+      alert('Failed to download PDF');
     }
   };
 
   const handleShareWhatsApp = async () => {
-    const pdf = await generatePDF();
-    if (pdf) {
-      const pdfBlob = pdf.output('blob');
-      const pdfUrl = URL.createObjectURL(pdfBlob);
-      
-      // Create a temporary link to download the PDF
-      const link = document.createElement('a');
-      link.href = pdfUrl;
-      link.download = `Invoice_${booking.name}_${booking.startDate}.pdf`;
-      link.click();
-      
-      // Open WhatsApp with message
-      const message = `Hi ${booking.name}, here is your booking invoice from Ashoka Hotel. Please find the PDF attachment.`;
-      const whatsappUrl = `https://wa.me/${booking.whatsapp || booking.number}?text=${encodeURIComponent(message)}`;
-      window.open(whatsappUrl, '_blank');
-      
-      // Clean up
-      setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+    try {
+      const pdf = await generatePDF();
+      if (pdf) {
+        const pdfBlob = pdf.output('blob');
+        const pdfUrl = URL.createObjectURL(pdfBlob);
+        
+        // Create a temporary link to download the PDF
+        const link = document.createElement('a');
+        link.href = pdfUrl;
+        link.download = `Invoice_${booking.name}_${booking.startDate}.pdf`;
+        link.click();
+        
+        // Open WhatsApp with message
+        const message = `Hi ${booking.name}, here is your booking invoice from Ashoka Hotel. Please find the PDF attachment.`;
+        const whatsappUrl = `https://wa.me/${booking.whatsapp || booking.number}?text=${encodeURIComponent(message)}`;
+        window.open(whatsappUrl, '_blank');
+        
+        // Clean up
+        setTimeout(() => URL.revokeObjectURL(pdfUrl), 1000);
+      }
+    } catch (error) {
+      console.error('Error sharing on WhatsApp:', error);
+      alert('Failed to share on WhatsApp');
+    }
+  };
+
+  const calculateDiscountAmount = () => {
+    try {
+      const subtotal = booking.pax * booking.ratePerPax;
+      const discountAmount = (subtotal * booking.discount) / 100;
+      return discountAmount.toFixed(2);
+    } catch (error) {
+      console.error('Error calculating discount:', error);
+      return '0.00';
     }
   };
 
@@ -177,7 +214,14 @@ const SharedInvoice = () => {
                 </div>
                 <div>
                   <p className="text-sm text-gray-600 print:text-xs print:text-black">Invoice Date</p>
-                  <p className="font-semibold print:text-sm">{formatDate(new Date())}</p>
+                  <p className="font-semibold print:text-sm">{(() => {
+                    try {
+                      return formatDate(new Date());
+                    } catch (error) {
+                      console.error('Error displaying invoice date:', error);
+                      return 'N/A';
+                    }
+                  })()}</p>
                 </div>
               </div>
             </div>
@@ -295,11 +339,7 @@ const SharedInvoice = () => {
                   {booking.discount > 0 && (
                     <div className="flex justify-between text-green-600 print:text-xs print:text-black">
                       <span>Discount ({booking.discount}%)</span>
-                      <span>-₹{(() => {
-                        const subtotal = booking.pax * booking.ratePerPax;
-                        const discountAmount = (subtotal * booking.discount) / 100;
-                        return discountAmount.toFixed(2);
-                      })()}</span>
+                      <span>-₹{calculateDiscountAmount()}</span>
                     </div>
                   )}
                   {booking.decorationCharge > 0 && (

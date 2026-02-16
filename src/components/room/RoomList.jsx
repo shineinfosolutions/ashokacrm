@@ -11,13 +11,43 @@ import {
   ChevronDown,
 } from "lucide-react";
 import { useAppContext } from "../../context/AppContext";
+import { useAuth } from "../../context/AuthContext";
 import { showToast } from "../../utils/toaster";
 import RoomForm from "./RoomForm";
 import Pagination from "../common/Pagination";
 import DashboardLoader from '../DashboardLoader';
 
+// Add CSS animations
+const styles = `
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .animate-fadeInUp { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; }
+  .animate-slideInLeft { opacity: 0; animation: slideInLeft 0.4s ease-out forwards; }
+  .animate-scaleIn { opacity: 0; animation: scaleIn 0.3s ease-out forwards; }
+  .animate-delay-100 { animation-delay: 0.1s; }
+  .animate-delay-200 { animation-delay: 0.2s; }
+  .animate-delay-300 { animation-delay: 0.3s; }
+`;
+
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = styles;
+  document.head.appendChild(styleSheet);
+}
+
 const RoomList = () => {
   const { axios } = useAppContext();
+  const { hasRole } = useAuth();
   const [rooms, setRooms] = useState([]);
   const [categories, setCategories] = useState({});
   const [loading, setLoading] = useState(true);
@@ -85,7 +115,7 @@ const RoomList = () => {
       setLoading(true);
 
       // Build query parameters (in a real implementation, you'd use these with your API)
-      let url = "/api/rooms/all";
+      let url = `${import.meta.env.VITE_API_URL}/api/rooms/all`;
 
       const { data } = await axios.get(url, {
         headers: {
@@ -93,7 +123,7 @@ const RoomList = () => {
         },
       });
 
-      let filteredRooms = data;
+      let filteredRooms = Array.isArray(data) ? data : [];
 
       // Client-side filtering (replace with server-side filtering when API supports it)
       if (statusFilter !== "all") {
@@ -111,8 +141,8 @@ const RoomList = () => {
       if (categoryFilter) {
         filteredRooms = filteredRooms.filter(
           (room) =>
-            room.category === categoryFilter ||
-            (room.category && room.category._id === categoryFilter)
+            room.categoryId === categoryFilter ||
+            (room.categoryId && room.categoryId._id === categoryFilter)
         );
       }
 
@@ -136,7 +166,7 @@ const RoomList = () => {
         startIndex + limit
       );
 
-      setRooms(paginatedRooms);
+      setRooms(Array.isArray(paginatedRooms) ? paginatedRooms : []);
       setTotal(totalItems);
       setTotalPages(totalPages);
       setError(null);
@@ -151,12 +181,14 @@ const RoomList = () => {
   const fetchCategories = async () => {
     try {
       const { data } = await axios.get(
-        "/api/categories/all"
+        `${import.meta.env.VITE_API_URL}/api/categories/all`
       );
       const categoryMap = {};
-      data.forEach((category) => {
-        categoryMap[category._id] = category.name;
-      });
+      if (Array.isArray(data)) {
+        data.forEach((category) => {
+          categoryMap[category._id] = category.name;
+        });
+      }
       setCategories(categoryMap);
       localStorage.setItem("roomCategories", JSON.stringify(categoryMap));
     } catch (err) {
@@ -186,7 +218,7 @@ const RoomList = () => {
     setCurrentRoom({
       _id: room._id,
       title: room.title,
-      category: room.category,
+      category: typeof room.categoryId === "object" ? room.categoryId._id : room.categoryId,
       room_number: room.room_number,
       price: room.price,
       exptra_bed: room.exptra_bed,
@@ -209,7 +241,7 @@ const RoomList = () => {
         };
 
         await axios.delete(
-          `/api/rooms/delete/${id}`,
+          `${import.meta.env.VITE_API_URL}/api/rooms/delete/${id}`,
           config
         );
         setRooms(rooms.filter((room) => room._id !== id));
@@ -229,7 +261,7 @@ const RoomList = () => {
         title: currentRoom.title,
         category: currentRoom.category,
         room_number: currentRoom.room_number,
-        price: currentRoom.price,
+        price: parseFloat(currentRoom.price),
         extra_bed: currentRoom.exptra_bed,
         status: currentRoom.status,
         description: currentRoom.description,
@@ -244,7 +276,7 @@ const RoomList = () => {
 
       if (editMode) {
         const { data } = await axios.put(
-          `/api/rooms/update/${currentRoom._id}`,
+          `${import.meta.env.VITE_API_URL}/api/rooms/update/${currentRoom._id}`,
           roomData,
           config
         );
@@ -257,7 +289,7 @@ const RoomList = () => {
         showToast.success("Room updated successfully");
       } else {
         const { data } = await axios.post(
-          "/api/rooms/add",
+          `${import.meta.env.VITE_API_URL}/api/rooms/add`,
           roomData,
           config
         );
@@ -286,8 +318,8 @@ const RoomList = () => {
   };
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 min-h-screen overflow-y-auto bg-[#fff9e6]">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-4 sm:mt-6 gap-4">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 min-h-screen overflow-y-auto bg-[#fff9e6]" style={{opacity: isInitialLoading ? 0 : 1, transition: 'opacity 0.3s ease-in-out'}}>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between mt-4 sm:mt-6 gap-4 animate-slideInLeft animate-delay-100">
         <h1 className="text-2xl sm:text-3xl font-extrabold text-[#1f2937]">Rooms</h1>
         <button
           onClick={handleAddRoom}
@@ -299,7 +331,7 @@ const RoomList = () => {
       </div>
 
       {/* Search and Filter */}
-      <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center gap-4 animate-fadeInUp animate-delay-200">
         <div className="relative flex-grow">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-dark/50 w-4 h-4" />
           <input
@@ -316,7 +348,7 @@ const RoomList = () => {
       </div>
 
       {/* Filter Buttons */}
-      <div className="flex justify-end" ref={dropdownRef}>
+      <div className="flex justify-end animate-fadeInUp animate-delay-300" ref={dropdownRef}>
         <div className="relative">
           <button
             onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -403,10 +435,11 @@ const RoomList = () => {
         <>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
             {rooms.length > 0 ? (
-              rooms.map((room) => (
+              rooms.map((room, index) => (
                 <div
                   key={room._id}
-                  className="bg-primary/50 border border-gray-200 backdrop-blur-sm rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all"
+                  className="bg-primary/50 border border-gray-200 backdrop-blur-sm rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all animate-scaleIn"
+                  style={{animationDelay: `${Math.min(index * 100 + 400, 800)}ms`}}
                 >
                   {/* Image Section */}
                   <div className="h-40 sm:h-48 bg-gray-200 relative overflow-hidden">
@@ -431,12 +464,14 @@ const RoomList = () => {
                       >
                         <Edit className="w-4 h-4 text-blue-600" />
                       </button>
-                      <button
-                        onClick={() => handleDeleteRoom(room._id)}
-                        className="bg-white/80 text-red-600 p-1.5 rounded-full hover:bg-white"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
+                      {hasRole('ADMIN') && (
+                        <button
+                          onClick={() => handleDeleteRoom(room._id)}
+                          className="bg-white/80 text-red-600 p-1.5 rounded-full hover:bg-white"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      )}
                     </div>
                     <div className="absolute top-2 left-2">
                       <span
@@ -468,11 +503,9 @@ const RoomList = () => {
                     <div className="flex items-center justify-between mb-3 sm:mb-4">
                       <span className="text-xs sm:text-sm text-dark/70">Category:</span>
                       <span className="font-semibold text-dark text-sm sm:text-base truncate ml-2">
-                        {room.category &&
-                        typeof room.category === "object" &&
-                        room.category.name
-                          ? room.category.name
-                          : categories[room.category] || "Unknown"}
+                        {typeof room.categoryId === "object" && room.categoryId?.name
+                          ? room.categoryId.name
+                          : categories[room.categoryId] || "Unknown"}
                       </span>
                     </div>
 
@@ -500,13 +533,15 @@ const RoomList = () => {
             )}
           </div>
 
-          <Pagination
-            currentPage={page}
-            totalPages={totalPages}
-            onPageChange={setPage}
-            itemsPerPage={limit}
-            totalItems={total}
-          />
+          <div className="animate-fadeInUp animate-delay-300">
+            <Pagination
+              currentPage={page}
+              totalPages={totalPages}
+              onPageChange={setPage}
+              itemsPerPage={limit}
+              totalItems={total}
+            />
+          </div>
         </>
       )}
 

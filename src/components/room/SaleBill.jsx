@@ -8,6 +8,17 @@ const SaleBill = () => {
   const order = location.state?.order;
   const printParam = location.state?.print;
 
+  const handleNavigateBack = React.useCallback(() => {
+    navigate(-1);
+  }, [navigate]);
+
+  const handlePrint = React.useCallback(() => {
+    window.print();
+  }, []);
+
+  const currentDate = React.useMemo(() => new Date().toLocaleDateString(), []);
+  const currentTime = React.useMemo(() => new Date().toLocaleTimeString(), []);
+
   React.useEffect(() => {
     if (printParam === true) {
       setTimeout(() => window.print(), 500);
@@ -35,14 +46,14 @@ const SaleBill = () => {
           <div className="p-8 text-base">
             <div className="flex justify-between items-center mb-6 no-print">
               <button 
-                onClick={() => navigate(-1)} 
+                onClick={handleNavigateBack} 
                 className="flex items-center text-blue-600 hover:text-blue-800"
               >
                 <ArrowLeft className="w-5 h-5 mr-2" />
                 Back
               </button>
               <button 
-                onClick={() => window.print()} 
+                onClick={handlePrint} 
                 className="flex items-center text-green-600 hover:text-green-800"
               >
                 <Printer className="w-5 h-5 mr-2" />
@@ -57,24 +68,32 @@ const SaleBill = () => {
             </div>
 
             <div className="mb-6 text-lg">
-              <div>Order: #{order._id.slice(-6)}</div>
-              <div>Room: {order.tableNo}</div>
+              <div>Order: #{order.orderNumber || order._id.slice(-6)}</div>
+              <div>Room: {order.roomNumber || order.tableNo}</div>
               <div>Guest: {order.guestName || 'Guest'}</div>
-              <div>Date: {new Date().toLocaleDateString()}</div>
-              <div>Time: {new Date().toLocaleTimeString()}</div>
+              <div>Date: {currentDate}</div>
+              <div>Time: {currentTime}</div>
             </div>
 
             <div className="text-lg">================================</div>
             
             <div className="my-6">
-              {order.items?.map((item, index) => (
-                <div key={index} className="mb-3">
-                  <div className="flex justify-between text-lg">
-                    <span>{item.quantity}x {item.itemName || item.name}</span>
-                    <span>₹{(item.price * item.quantity).toFixed(2)}</span>
-                  </div>
-                </div>
-              ))}
+              {order.items?.map((item, index) => {
+                try {
+                  const totalPrice = item.totalPrice || (item.price * item.quantity) || (item.unitPrice * item.quantity) || 0;
+                  return (
+                    <div key={index} className="mb-3">
+                      <div className="flex justify-between text-lg">
+                        <span>{item.quantity}x {item.itemName || item.name}</span>
+                        <span>₹{totalPrice.toFixed(2)}</span>
+                      </div>
+                    </div>
+                  );
+                } catch (error) {
+                  console.error('Error rendering item:', error);
+                  return null;
+                }
+              })}
             </div>
 
             <div className="text-lg">================================</div>
@@ -82,15 +101,7 @@ const SaleBill = () => {
             <div className="my-6 space-y-2">
               <div className="flex justify-between text-lg">
                 <span>Subtotal:</span>
-                <span>₹{order.amount.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-lg">
-                <span>Tax (18%):</span>
-                <span>₹{(order.amount * 0.18).toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-lg">
-                <span>Service (10%):</span>
-                <span>₹{(order.amount * 0.1).toFixed(2)}</span>
+                <span>₹{((order.subtotal || order.amount) || 0).toFixed(2)}</span>
               </div>
             </div>
 
@@ -98,7 +109,7 @@ const SaleBill = () => {
             
             <div className="flex justify-between font-bold text-xl my-4">
               <span>TOTAL:</span>
-              <span>₹{(order.amount * 1.28).toFixed(2)}</span>
+              <span>₹{((order.totalAmount || order.subtotal || order.amount) || 0).toFixed(2)}</span>
             </div>
 
             <div className="text-lg">================================</div>

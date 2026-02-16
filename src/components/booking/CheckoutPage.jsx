@@ -30,7 +30,7 @@ const CheckoutPage = () => {
   const fetchStaff = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('https://ashoka-api.shineinfosolutions.in/api/housekeeping/available-staff', {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/housekeeping/available-staff`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       console.log('Staff API response:', response.data);
@@ -57,7 +57,7 @@ const CheckoutPage = () => {
   const fetchBookings = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('https://ashoka-api.shineinfosolutions.in/api/bookings/all', {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/bookings/all`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setBookings(response.data);
@@ -69,7 +69,7 @@ const CheckoutPage = () => {
   const fetchRooms = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('https://ashoka-api.shineinfosolutions.in/api/rooms/all', {
+      const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/rooms/all`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       setRooms(response.data);
@@ -82,69 +82,25 @@ const CheckoutPage = () => {
     setLoading(true);
     try {
       const token = localStorage.getItem('token');
-      const selectedBookingData = bookings.find(b => b._id === bookingId);
-      const roomId = selectedBookingData?.roomId || selectedBookingData?.room_id;
       
-      // Get inspection charges from checklist - starting with 0
-      let inspectionCharges = 0;
-      console.log('Initial inspection charges:', inspectionCharges);
-      const roomNumber = selectedBookingData?.roomNumber || selectedBookingData?.room_number;
-      const roomData = rooms.find(room => room.roomNumber === roomNumber || room.room_number === roomNumber);
-      
-      if (roomData) {
-        try {
-          const inspectionResponse = await axios.get(`https://ashoka-api.shineinfosolutions.in/api/housekeeping/checklist/${roomData._id}`, {
-            headers: { Authorization: `Bearer ${token}` }
-          });
-          if (Array.isArray(inspectionResponse.data)) {
-            inspectionCharges = inspectionResponse.data.reduce((total, item) => total + (item.cost || item.charge || item.costPerUnit || 0), 0);
-          } else if (inspectionResponse.data.checklist) {
-            inspectionCharges = inspectionResponse.data.checklist.reduce((total, item) => total + (item.cost || item.charge || item.costPerUnit || 0), 0);
-          }
-          console.log('Inspection charges calculated:', inspectionCharges);
-        } catch (error) {
-          console.log('No inspection charges found');
-        }
-      }
-      
-      // Get laundry charges
-      let laundryCharges = 0;
+      // First, try to get existing checkout or create one
+      let checkoutResponse;
       try {
-        const grcNo = selectedBookingData?.grcNo || selectedBookingData?.guestRegistrationCardNo;
-        const laundryResponse = await axios.get(`https://ashoka-api.shineinfosolutions.in/api/laundry/by-grc/${grcNo}`, {
+        // Try to get existing checkout
+        checkoutResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/checkout/booking/${bookingId}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        const laundryData = laundryResponse.data;
-        laundryCharges = laundryData.reduce((total, item) => total + (item.totalAmount || 0), 0);
       } catch (error) {
-        console.log('No laundry charges found');
-      }
-      
-      // Get room service charges
-      let roomServiceCharges = 0;
-      try {
-        const roomServiceResponse = await axios.get(`https://ashoka-api.shineinfosolutions.in/api/room-service/room-charges?bookingId=${bookingId}`, {
+        // If no checkout exists, create one
+        checkoutResponse = await axios.post(`${import.meta.env.VITE_API_URL}/api/checkout/create`, {
+          bookingId: bookingId
+        }, {
           headers: { Authorization: `Bearer ${token}` }
         });
-        roomServiceCharges = roomServiceResponse.data.totalCharges || 0;
-      } catch (error) {
-        console.log('No room service charges found');
       }
-      
-      const checkoutResponse = await axios.post('https://ashoka-api.shineinfosolutions.in/api/checkout/create', {
-        bookingId: bookingId,
-        roomId: roomId
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      console.log('Checkout API response:', checkoutResponse.data);
       
       const checkoutData = checkoutResponse.data.checkout;
-      console.log('Checkout data from API:', checkoutData);
-      
-      // Use the charges already calculated by the API
-      // Don't add additional charges as they're already included
+      console.log('Checkout data:', checkoutData);
       
       setCheckoutData(checkoutData);
     } catch (error) {
@@ -185,13 +141,13 @@ const CheckoutPage = () => {
         notes: 'Room cleaning after checkout and inspection'
       };
       
-      const taskResponse = await axios.post('https://ashoka-api.shineinfosolutions.in/api/housekeeping/tasks', taskData, {
+      const taskResponse = await axios.post(`${import.meta.env.VITE_API_URL}/api/housekeeping/tasks`, taskData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
       // Then assign it using PUT if task creation returns an ID
       if (taskResponse.data._id) {
-        await axios.put(`https://ashoka-api.shineinfosolutions.in/api/housekeeping/tasks/${taskResponse.data._id}/assign`, {
+        await axios.put(`${import.meta.env.VITE_API_URL}/api/housekeeping/tasks/${taskResponse.data._id}/assign`, {
           assignedTo: selectedStaff
         }, {
           headers: { Authorization: `Bearer ${token}` }
@@ -222,48 +178,22 @@ const CheckoutPage = () => {
       return;
     }
     
+    // Validate that checkoutData has a valid _id
+    if (!checkoutData._id) {
+      showToast.error('Invalid checkout data. Please refresh and try again.');
+      return;
+    }
+    
     try {
       const token = localStorage.getItem('token');
       
-      // Mark room service orders as paid
-      try {
-        await axios.post('https://ashoka-api.shineinfosolutions.in/api/room-service/mark-paid', {
-          bookingId: selectedBooking
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      } catch (error) {
-        console.log('No room service orders to mark as paid');
-      }
-      
-      // Process payment
-      await axios.put(`https://ashoka-api.shineinfosolutions.in/api/checkout/${checkoutData._id}/payment`, {
-        status: 'paid',
-        paidAmount: parseFloat(paymentAmount),
-        method: paymentMethod
+      // Process payment using the correct checkout ID
+      await axios.put(`${import.meta.env.VITE_API_URL}/api/checkout/${checkoutData._id}/payment`, {
+        status: 'Completed',
+        paidAmount: parseFloat(paymentAmount)
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
-      // Update booking status to 'Checked Out'
-      await axios.put(`https://ashoka-api.shineinfosolutions.in/api/bookings/update/${selectedBooking}`, {
-        status: 'Checked Out'
-      }, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
-      
-      // Update room status to available
-      const selectedBookingData = bookings.find(b => b._id === selectedBooking);
-      const roomNumber = selectedBookingData.roomNumber || selectedBookingData.room_number;
-      const roomData = rooms.find(room => room.roomNumber === roomNumber || room.room_number === roomNumber);
-      
-      if (roomData) {
-        await axios.put(`https://ashoka-api.shineinfosolutions.in/api/rooms/update/${roomData._id}`, {
-          status: 'available'
-        }, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-      }
       
       // Update local checkout data status immediately
       setCheckoutData(prev => ({
@@ -272,13 +202,18 @@ const CheckoutPage = () => {
       }));
       
       showToast.success(`💰 Payment of ₹${paymentAmount} processed successfully via ${paymentMethod}!`);
+      alert(`🎉 Payment of ₹${paymentAmount} processed successfully via ${paymentMethod}! Guest checkout completed.`);
       
       setShowPaymentForm(false);
       setPaymentAmount('');
       
+      // Refresh bookings to show updated status
+      fetchBookings();
+      
     } catch (error) {
       console.error('Error processing payment:', error);
-      showToast.error('Error processing payment');
+      const errorMessage = error.response?.data?.message || 'Error processing payment';
+      showToast.error(errorMessage);
     }
   };
 
@@ -349,7 +284,7 @@ const CheckoutPage = () => {
       // Fetch checklist from API
       let checklist = [];
       try {
-        const checklistResponse = await axios.get(`https://ashoka-api.shineinfosolutions.in/api/housekeeping/checklist/${roomData._id}`, {
+        const checklistResponse = await axios.get(`${import.meta.env.VITE_API_URL}/api/housekeeping/checklist/${roomData._id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         
@@ -386,7 +321,7 @@ const CheckoutPage = () => {
         status: 'completed'
       };
       
-      await axios.post('https://ashoka-api.shineinfosolutions.in/api/housekeeping/room-inspection', inspectionData, {
+      await axios.post(`${import.meta.env.VITE_API_URL}/api/housekeeping/room-inspection`, inspectionData, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -476,6 +411,29 @@ const CheckoutPage = () => {
                   <span className="text-gray-600">Inspection Charges:</span>
                   <span className="font-semibold text-red-600">₹{checkoutData.inspectionCharges || 0}</span>
                 </div>
+                {(() => {
+                  const selectedBookingData = bookings.find(b => b._id === selectedBooking);
+                  const discountPercent = selectedBookingData?.discountPercent || 0;
+                  const discountNotes = selectedBookingData?.discountNotes || '';
+                  
+                  if (discountPercent > 0) {
+                    return (
+                      <>
+                        <div className="flex justify-between items-center py-2 border-b border-gray-200">
+                          <span className="text-gray-600">Discount ({discountPercent}%):</span>
+                          <span className="font-semibold text-green-600">Applied</span>
+                        </div>
+                        {discountNotes && (
+                          <div className="py-2 border-b border-gray-200">
+                            <span className="text-gray-600 text-sm">Discount Notes:</span>
+                            <p className="text-sm text-gray-700 mt-1 italic">"{discountNotes}"</p>
+                          </div>
+                        )}
+                      </>
+                    );
+                  }
+                  return null;
+                })()}
                 <div className="flex justify-between items-center py-3 border-t-2 border-yellow-400">
                   <span className="text-lg font-bold text-yellow-900">Total Amount:</span>
                   <span className="text-lg font-bold text-yellow-900">₹{checkoutData.totalAmount || 0}</span>

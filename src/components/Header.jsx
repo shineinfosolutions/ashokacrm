@@ -1,14 +1,16 @@
 import React from "react";
 import { useNavigate } from "react-router-dom";
 import { useAppContext } from "../context/AppContext";
-import { Menu, LogOut } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
+import { Menu, LogOut, User } from "lucide-react";
 
 const Header = () => {
   const { toggleSidebar } = useAppContext();
+  const { user, logout } = useAuth();
   const navigate = useNavigate();
 
   const handleLogout = () => {
-    localStorage.clear();
+    logout();
     navigate("/login");
   };
 
@@ -19,8 +21,16 @@ const Header = () => {
         <Menu size={24} />
       </button>
 
-      {/* Title or empty space for center alignment */}
-      <div className="flex-1"></div>
+      {/* User info */}
+      <div className="flex-1 flex items-center justify-center">
+        <div className="flex items-center text-gray-700">
+          <User className="w-4 h-4 mr-2" />
+          <span className="text-sm font-medium">{user?.username}</span>
+          <span className="ml-2 px-2 py-1 bg-[#D4AF37] text-white text-xs rounded">
+            {user?.role}
+          </span>
+        </div>
+      </div>
 
       {/* Logout button */}
       <button

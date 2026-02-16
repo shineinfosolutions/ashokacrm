@@ -3,6 +3,34 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { ArrowLeft } from "lucide-react";
 import { useAppContext } from "../../context/AppContext";
 
+// Add CSS animations
+const styles = `
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .animate-fadeInUp { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; }
+  .animate-slideInLeft { opacity: 0; animation: slideInLeft 0.4s ease-out forwards; }
+  .animate-scaleIn { opacity: 0; animation: scaleIn 0.3s ease-out forwards; }
+  .animate-delay-100 { animation-delay: 0.1s; }
+  .animate-delay-200 { animation-delay: 0.2s; }
+  .animate-delay-300 { animation-delay: 0.3s; }
+`;
+
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = styles;
+  document.head.appendChild(styleSheet);
+}
+
 const RoomServiceBilling = () => {
   const { axios } = useAppContext();
   const navigate = useNavigate();
@@ -22,32 +50,43 @@ const RoomServiceBilling = () => {
     const navGrcNo = location.state?.grcNo;
     const roomData = localStorage.getItem('selectedRoomService');
     
+    let currentGrcNo = null;
     if (navGrcNo) {
+      currentGrcNo = navGrcNo;
       setGrcNo(navGrcNo);
     } else if (roomData) {
       const parsed = JSON.parse(roomData);
-      setGrcNo(parsed.booking?.grcNo);
+      currentGrcNo = parsed.booking?.grcNo;
+      setGrcNo(currentGrcNo);
     }
     
-    fetchRoomServiceOrders();
-  }, [location.state, grcNo]);
+    // Fetch orders with the current GRC number
+    fetchRoomServiceOrders(currentGrcNo);
+  }, [location.state]);
 
-  const fetchRoomServiceOrders = async () => {
+  // Separate useEffect to refetch when grcNo changes
+  useEffect(() => {
+    if (grcNo) {
+      fetchRoomServiceOrders(grcNo);
+    }
+  }, [grcNo]);
+
+  const fetchRoomServiceOrders = async (filterGrcNo = null) => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/restaurant-orders/all', {
+      const currentGrcNo = filterGrcNo || grcNo;
+      
+      // Build query parameters
+      const queryParams = new URLSearchParams();
+      if (currentGrcNo) {
+        queryParams.append('grcNo', currentGrcNo);
+      }
+      
+      const response = await axios.get(`/api/room-service/all?${queryParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
-      // Filter room service orders by booking ID if available
-      let roomOrders = response.data.filter(order => 
-        order.tableNo && order.tableNo.startsWith('R')
-      );
-      
-      if (grcNo) {
-        roomOrders = roomOrders.filter(order => order.grcNo === grcNo);
-      }
-      
+      const roomOrders = response.data.orders || [];
       setOrders(roomOrders);
     } catch (error) {
       console.error('Error fetching room service orders:', error);
@@ -64,10 +103,10 @@ const RoomServiceBilling = () => {
       // Create bill
       const billData = {
         orderId: showPayment._id,
-        tableNo: showPayment.tableNo,
-        subtotal: showPayment.amount,
-        tax: Math.round(showPayment.amount * 0.18 * 100) / 100,
-        totalAmount: Math.round(showPayment.amount * 1.18 * 100) / 100,
+        tableNo: showPayment.roomNumber || showPayment.tableNo,
+        subtotal: showPayment.subtotal || showPayment.amount,
+        tax: 0,
+        totalAmount: showPayment.totalAmount || showPayment.subtotal || showPayment.amount,
         paymentMethod: paymentData.paymentMethod,
         billNumber: `RS-${Date.now().toString().slice(-6)}`,
         cashierId: user?._id || 'default'
@@ -78,8 +117,8 @@ const RoomServiceBilling = () => {
       });
       
       // Update order status to paid
-      await axios.patch(`/api/restaurant-orders/${showPayment._id}/status`, {
-        status: 'paid'
+      await axios.patch(`/api/room-service/${showPayment._id}/payment`, {
+        paymentStatus: 'paid'
       }, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -88,7 +127,7 @@ const RoomServiceBilling = () => {
       setShowPayment(null);
       fetchRoomServiceOrders();
     } catch (error) {
-      console.error('Error processing payment:', error);
+
       alert('Failed to process payment');
     }
   };
@@ -97,7 +136,7 @@ const RoomServiceBilling = () => {
     <div className="min-h-screen p-6" style={{backgroundColor: 'var(--color-background)'}}>
       <div className="max-w-6xl mx-auto">
         {/* Header */}
-        <div className="bg-white rounded-xl shadow-md p-6 mb-6">
+        <div className="bg-white rounded-xl shadow-md p-6 mb-6 animate-slideInLeft animate-delay-100">
           <div className="flex items-center justify-between">
             <button
               onClick={() => navigate(-1)}
@@ -116,7 +155,7 @@ const RoomServiceBilling = () => {
         </div>
 
         {/* Orders Table */}
-        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+        <div className="bg-white rounded-xl shadow-md overflow-hidden animate-fadeInUp animate-delay-200">
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead style={{backgroundColor: 'var(--color-secondary)'}}>
@@ -132,9 +171,9 @@ const RoomServiceBilling = () => {
               </thead>
               <tbody>
                 {orders.map((order, index) => (
-                  <tr key={order._id} className={index % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                    <td className="px-4 py-3 font-mono">{order._id.slice(-6)}</td>
-                    <td className="px-4 py-3">{order.tableNo}</td>
+                  <tr key={order._id} className={`${index % 2 === 0 ? 'bg-white' : 'bg-gray-50'} animate-scaleIn`} style={{animationDelay: `${Math.min(index * 100 + 300, 800)}ms`}}>
+                    <td className="px-4 py-3 font-mono">{order.orderNumber || order._id.slice(-6)}</td>
+                    <td className="px-4 py-3">{order.roomNumber || order.tableNo}</td>
                     <td className="px-4 py-3">{order.guestName || 'Guest'}</td>
                     <td className="px-4 py-3">
                       <button
@@ -144,7 +183,7 @@ const RoomServiceBilling = () => {
                         View Items ({order.items?.length || 0})
                       </button>
                     </td>
-                    <td className="px-4 py-3 font-semibold">₹{order.amount}</td>
+                    <td className="px-4 py-3 font-semibold">₹{order.totalAmount || order.amount}</td>
                     <td className="px-4 py-3">
                       <span className={`px-2 py-1 rounded text-xs ${
                         order.status === 'paid' ? 'bg-green-100 text-green-800' :
@@ -203,7 +242,7 @@ const RoomServiceBilling = () => {
               <div className="flex justify-between items-center">
                 <div>
                   <h3 className="text-xl font-bold">Order Items</h3>
-                  <p className="text-sm text-gray-600">Order #{showItems._id.slice(-6)} - {showItems.tableNo}</p>
+                  <p className="text-sm text-gray-600">Order #{showItems.orderNumber || showItems._id.slice(-6)} - {showItems.roomNumber || showItems.tableNo}</p>
                 </div>
                 <button
                   onClick={() => setShowItems(null)}
@@ -225,8 +264,8 @@ const RoomServiceBilling = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="font-semibold">₹{item.price} × {item.quantity}</div>
-                      <div className="text-sm text-gray-600">₹{item.price * item.quantity}</div>
+                      <div className="font-semibold">₹{item.unitPrice || item.price} × {item.quantity}</div>
+                      <div className="text-sm text-gray-600">₹{item.totalPrice || (item.unitPrice || item.price) * item.quantity}</div>
                     </div>
                   </div>
                 ))}
@@ -235,7 +274,7 @@ const RoomServiceBilling = () => {
               <div className="mt-6 pt-4 border-t">
                 <div className="flex justify-between items-center font-bold text-lg">
                   <span>Total Amount:</span>
-                  <span>₹{showItems.amount}</span>
+                  <span>₹{showItems.totalAmount || showItems.amount}</span>
                 </div>
               </div>
             </div>
@@ -256,10 +295,10 @@ const RoomServiceBilling = () => {
               <div className="bg-gray-50 p-4 rounded-lg">
                 <div className="flex justify-between items-center">
                   <span>Total Amount:</span>
-                  <span className="font-bold text-lg">₹{Math.round(showPayment.amount * 1.18)}</span>
+                  <span className="font-bold text-lg">₹{showPayment.totalAmount || showPayment.subtotal || showPayment.amount}</span>
                 </div>
                 <div className="text-xs text-gray-500 mt-1">
-                  Subtotal: ₹{showPayment.amount} + Tax (18%): ₹{Math.round(showPayment.amount * 0.18)}
+                  Total Amount: ₹{showPayment.totalAmount || showPayment.subtotal || showPayment.amount}
                 </div>
               </div>
 

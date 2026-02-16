@@ -1,454 +1,409 @@
-import React, { useState } from 'react';
-import { toast, Toaster } from 'react-hot-toast';
-import { Warehouse, Package, Plus } from 'lucide-react';
-import InventoryTable from './InventoryTable';
-import InventoryTransactions from './InventoryTransactions';
-import RoomChecklist from './RoomChecklist';
+import React, { useState, useEffect } from 'react';
+import PropTypes from 'prop-types';
+import { X, Package } from 'lucide-react';
+import { toast } from 'react-hot-toast';
 
-const InventoryForm = () => {
+const InventoryForm = ({ item, categories = [], onClose }) => {
   const [loading, setLoading] = useState(false);
-  const [editingId, setEditingId] = useState(null);
-  const [refreshTable, setRefreshTable] = useState(0);
-  const [showForm, setShowForm] = useState(false);
   const [formData, setFormData] = useState({
     name: '',
-    category: 'Amenity',
-    currentStock: '',
-    unit: '',
-    minThreshold: '',
-    reorderQuantity: '',
-    costPerUnit: '',
+    itemCode: '',
+    categoryId: '',
+    description: '',
+    currentStock: 0,
+    minStockLevel: 5,
+    reorderLevel: 10,
+    unit: 'pieces',
+    location: 'Store Room',
     supplier: {
       name: '',
-      contactPerson: '',
-      phone: '',
-      email: '',
-      address: ''
+      contact: ''
     },
-    location: 'Main Storage',
-    autoReorder: false,
-    notes: ''
+    pricePerUnit: 0,
+    lastPurchased: ''
   });
 
+  const units = ['pieces', 'boxes', 'liters', 'packs', 'kg', 'meters'];
+  const locations = ['Store Room', 'Kitchen Store', 'Floor Storage', 'Laundry Room', 'Maintenance Room'];
+
+  useEffect(() => {
+    if (item) {
+      setFormData({
+        name: item.name || '',
+        itemCode: item.itemCode || '',
+        categoryId: item.categoryId?._id || item.categoryId || '',
+        description: item.description || '',
+        currentStock: item.currentStock || 0,
+        minStockLevel: item.minStockLevel || 5,
+        reorderLevel: item.reorderLevel || 10,
+        unit: item.unit || 'pieces',
+        location: item.location || 'Store Room',
+        supplier: {
+          name: item.supplier?.name || '',
+          contact: item.supplier?.contact || ''
+        },
+        pricePerUnit: item.pricePerUnit || 0,
+        lastPurchased: item.lastPurchased ? new Date(item.lastPurchased).toISOString().split('T')[0] : ''
+      });
+    } else if (categories.length > 0 && !formData.categoryId) {
+      setFormData(prev => ({ ...prev, categoryId: categories[0]?._id || '' }));
+    }
+  }, [item, categories]);
+
   const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+    const { name, value } = e.target;
     
     if (name.startsWith('supplier.')) {
-      const supplierField = name.split('.')[1];
-      setFormData({
-        ...formData,
+      const field = name.split('.')[1];
+      setFormData(prev => ({
+        ...prev,
         supplier: {
-          ...formData.supplier,
-          [supplierField]: value
+          ...prev.supplier,
+          [field]: value
         }
-      });
+      }));
     } else {
-      setFormData({
-        ...formData,
-        [name]: type === 'checkbox' ? checked : value
-      });
+      setFormData(prev => ({
+        ...prev,
+        [name]: value
+      }));
     }
+  };
+
+
+
+  const generateItemCode = () => {
+    const selectedCategory = categories.find(cat => cat._id === formData.categoryId);
+    const categoryCode = selectedCategory?.name?.substring(0, 3).toUpperCase() || 'ITM';
+    const randomNum = Math.floor(1000 + Math.random() * 9000);
+    const newCode = `${categoryCode}${randomNum}`;
+    setFormData(prev => ({ ...prev, itemCode: newCode }));
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLoading(true);
-    
+
     try {
-      const submitData = {
-        ...formData,
-        currentStock: Number(formData.currentStock),
-        minThreshold: Number(formData.minThreshold),
-        reorderQuantity: Number(formData.reorderQuantity),
-        costPerUnit: Number(formData.costPerUnit)
-      };
-      
-      console.log('Submit data:', submitData);
-      
-      const url = editingId 
-        ? `https://ashoka-api.shineinfosolutions.in/api/inventory/${editingId}`
-        : 'https://ashoka-api.shineinfosolutions.in/api/inventory/items';
-      
-      const method = editingId ? 'PUT' : 'POST';
+      const url = item 
+        ? `${import.meta.env.VITE_API_URL}/api/inventory/items/${item._id}`
+        : `${import.meta.env.VITE_API_URL}/api/inventory/items`;
+
+      const token = localStorage.getItem('token');
+      if (!token) {
+        toast.error('Authentication token missing. Please login again.');
+        return;
+      }
 
       const response = await fetch(url, {
-        method,
+        method: item ? 'PUT' : 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `Bearer ${localStorage.getItem('token')}`
+          'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify(submitData)
+        body: JSON.stringify({
+          ...formData,
+          currentStock: parseInt(formData.currentStock),
+          minStockLevel: parseInt(formData.minStockLevel),
+          reorderLevel: parseInt(formData.reorderLevel),
+          pricePerUnit: parseFloat(formData.pricePerUnit),
+          lastPurchased: formData.lastPurchased || null
+        })
       });
-      
-      console.log('Response status:', response.status);
 
       if (response.ok) {
-        toast.success(editingId ? 'Inventory updated successfully!' : 'Inventory item added successfully!');
-        
-        setFormData({
-          name: '',
-          category: 'Amenity',
-          currentStock: '',
-          unit: '',
-          minThreshold: '',
-          reorderQuantity: '',
-          costPerUnit: '',
-          supplier: {
-            name: '',
-            contactPerson: '',
-            phone: '',
-            email: '',
-            address: ''
-          },
-          location: 'Main Storage',
-          autoReorder: false,
-          notes: ''
-        });
-        setEditingId(null);
-        setRefreshTable(prev => prev + 1);
-        setShowForm(false);
+        toast.success(item ? 'Item updated successfully!' : 'Item added successfully!');
+        onClose();
       } else {
-        const errorData = await response.json().catch(() => ({}));
-        const errorMessage = errorData.error || 'Failed to save inventory item';
-        if (errorMessage.includes('buffering timed out')) {
-          toast.error('Database connection timeout. Please try again.');
-        } else {
-          toast.error(errorMessage);
-        }
+        const error = await response.json();
+        toast.error(error.error || 'Failed to save item');
       }
     } catch (error) {
-      console.error('Error:', error);
-      toast.error('Error saving inventory item');
+      toast.error('Error saving item');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleEdit = (item) => {
-    setFormData({
-      name: item.name,
-      category: item.category,
-      currentStock: item.currentStock.toString(),
-      unit: item.unit,
-      minThreshold: item.minThreshold.toString(),
-      reorderQuantity: item.reorderQuantity.toString(),
-      costPerUnit: item.costPerUnit.toString(),
-      supplier: item.supplier || {
-        name: '',
-        contactPerson: '',
-        phone: '',
-        email: '',
-        address: ''
-      },
-      location: item.location || 'Main Storage',
-      autoReorder: item.autoReorder || false,
-      notes: item.notes || ''
-    });
-    setEditingId(item._id);
-    setShowForm(true);
-  };
-
-  const cancelEdit = () => {
-    setEditingId(null);
-    setFormData({
-      name: '',
-      category: 'Amenity',
-      currentStock: '',
-      unit: '',
-      minThreshold: '',
-      reorderQuantity: '',
-      costPerUnit: '',
-      supplier: {
-        name: '',
-        contactPerson: '',
-        phone: '',
-        email: '',
-        address: ''
-      },
-      location: 'Main Storage',
-      autoReorder: false,
-      notes: ''
-    });
-  };
-
   return (
-    <div className="p-3 sm:p-4 lg:p-6 overflow-auto h-full bg-background">
-      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 sm:mb-6 gap-3 sm:gap-4">
-        <h1 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-[#1f2937] flex items-center gap-2">
-          <Warehouse className="text-blue-600" size={24} />
-          <span className="hidden sm:inline">Inventory Management</span>
-          <span className="sm:hidden">Inventory</span>
-        </h1>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-3 sm:px-4 py-2 rounded-lg font-medium transition-colors flex items-center gap-2 text-sm sm:text-base w-full sm:w-auto justify-center"
-        >
-          <Plus size={16} />
-          {showForm ? 'Hide Form' : 'Add Item'}
-        </button>
-      </div>
-
-      {showForm && (
-        <div className="bg-white rounded-lg shadow-md p-4 sm:p-6 mb-4 sm:mb-6">
-          <div className="flex items-center gap-2 mb-4 sm:mb-6">
-            <Package className="text-blue-500" size={20} />
-            <h2 className="text-lg sm:text-xl font-bold text-gray-800">
-              {editingId ? 'Edit Inventory Item' : 'Add Inventory Item'}
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+      <div className="bg-white rounded-lg w-full max-w-4xl max-h-[90vh] overflow-y-auto">
+        {/* Header */}
+        <div className="flex items-center justify-between p-6 border-b">
+          <div className="flex items-center gap-3">
+            <Package className="text-blue-600" size={24} />
+            <h2 className="text-xl font-bold text-gray-900">
+              {item ? 'Edit Inventory Item' : 'Add New Inventory Item'}
             </h2>
           </div>
-          
-          <form onSubmit={handleSubmit} className="space-y-4 sm:space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+          <button
+            onClick={onClose}
+            className="text-gray-400 hover:text-gray-600 p-1"
+          >
+            <X size={24} />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-6">
+          {/* Basic Information */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Basic Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Item Name *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Item Name *
+                </label>
                 <input
                   type="text"
                   name="name"
                   value={formData.name}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                   placeholder="Enter item name"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Category *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Item Code / SKU *
+                </label>
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    name="itemCode"
+                    value={formData.itemCode}
+                    onChange={handleChange}
+                    required
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                    placeholder="Enter or generate code"
+                  />
+                  <button
+                    type="button"
+                    onClick={generateItemCode}
+                    className="px-3 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                  >
+                    Generate
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Category *
+                </label>
                 <select
-                  name="category"
-                  value={formData.category}
+                  name="categoryId"
+                  value={formData.categoryId}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 >
-                  <option value="Amenity">Amenity</option>
-                  <option value="Cleaning">Cleaning</option>
-                  <option value="Maintenance">Maintenance</option>
-                  <option value="Food">Food</option>
-                  <option value="Beverage">Beverage</option>
-                  <option value="Linen">Linen</option>
-                  <option value="Toiletry">Toiletry</option>
-                  <option value="Snakes">Snakes</option>
-                  <option value="Other">Other</option>
+                  <option value="">Select Category</option>
+                  {categories.map(cat => (
+                    <option key={cat._id} value={cat._id}>{cat.name}</option>
+                  ))}
                 </select>
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Current Stock *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Location *
+                </label>
+                <select
+                  name="location"
+                  value={formData.location}
+                  onChange={handleChange}
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {locations.map(loc => (
+                    <option key={loc} value={loc}>{loc}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Description
+                </label>
+                <textarea
+                  name="description"
+                  value={formData.description}
+                  onChange={handleChange}
+                  rows="3"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter item description"
+                />
+              </div>
+            </div>
+          </div>
+
+          {/* Stock Information */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Stock Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Current Stock *
+                </label>
                 <input
                   type="number"
                   name="currentStock"
                   value={formData.currentStock}
                   onChange={handleChange}
-                  required
                   min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="0"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                 />
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Unit *</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Min Stock Level *
+                </label>
                 <input
-                  type="text"
+                  type="number"
+                  name="minStockLevel"
+                  value={formData.minStockLevel}
+                  onChange={handleChange}
+                  min="0"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Reorder Level *
+                </label>
+                <input
+                  type="number"
+                  name="reorderLevel"
+                  value={formData.reorderLevel}
+                  onChange={handleChange}
+                  min="0"
+                  required
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Unit of Measure *
+                </label>
+                <select
                   name="unit"
                   value={formData.unit}
                   onChange={handleChange}
                   required
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="e.g., kg, pieces, liters"
-                />
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                >
+                  {units.map(unit => (
+                    <option key={unit} value={unit}>{unit}</option>
+                  ))}
+                </select>
               </div>
+            </div>
+          </div>
 
+          {/* Supplier Information */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Supplier Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Min Threshold *</label>
-                <input
-                  type="number"
-                  name="minThreshold"
-                  value={formData.minThreshold}
-                  onChange={handleChange}
-                  required
-                  min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Minimum stock level"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Reorder Quantity *</label>
-                <input
-                  type="number"
-                  name="reorderQuantity"
-                  value={formData.reorderQuantity}
-                  onChange={handleChange}
-                  required
-                  min="1"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Quantity to reorder"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Cost Per Unit *</label>
-                <input
-                  type="number"
-                  name="costPerUnit"
-                  value={formData.costPerUnit}
-                  onChange={handleChange}
-                  required
-                  step="0.01"
-                  min="0"
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Cost per unit"
-                />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">Location</label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Supplier Name
+                </label>
                 <input
                   type="text"
-                  name="location"
-                  value={formData.location}
+                  name="supplier.name"
+                  value={formData.supplier.name}
                   onChange={handleChange}
-                  className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                  placeholder="Storage location"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Enter supplier name"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Supplier Contact
+                </label>
+                <input
+                  type="text"
+                  name="supplier.contact"
+                  value={formData.supplier.contact}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="Phone number or email"
                 />
               </div>
             </div>
+          </div>
 
-            <div className="border-t pt-4 sm:pt-6">
-              <h3 className="text-lg font-semibold text-gray-800 mb-4">Supplier Information</h3>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Supplier Name</label>
-                  <input
-                    type="text"
-                    name="supplier.name"
-                    value={formData.supplier.name}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Supplier name"
-                  />
-                </div>
+          {/* Pricing Information */}
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900 mb-4">Pricing Information</h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Price per Unit (₹)
+                </label>
+                <input
+                  type="number"
+                  name="pricePerUnit"
+                  value={formData.pricePerUnit}
+                  onChange={handleChange}
+                  min="0"
+                  step="0.01"
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  placeholder="0.00"
+                />
+              </div>
 
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Contact Person</label>
-                  <input
-                    type="text"
-                    name="supplier.contactPerson"
-                    value={formData.supplier.contactPerson}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Contact person"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Phone</label>
-                  <input
-                    type="tel"
-                    name="supplier.phone"
-                    value={formData.supplier.phone}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Phone number"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Email</label>
-                  <input
-                    type="email"
-                    name="supplier.email"
-                    value={formData.supplier.email}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Email address"
-                  />
-                </div>
-
-                <div className="lg:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Address</label>
-                  <textarea
-                    name="supplier.address"
-                    value={formData.supplier.address}
-                    onChange={handleChange}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Supplier address"
-                  />
-                </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Last Purchased Date
+                </label>
+                <input
+                  type="date"
+                  name="lastPurchased"
+                  value={formData.lastPurchased}
+                  onChange={handleChange}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                />
               </div>
             </div>
+          </div>
 
-            <div className="border-t pt-4 sm:pt-6">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-                <div className="flex items-center">
-                  <input
-                    type="checkbox"
-                    name="autoReorder"
-                    checked={formData.autoReorder}
-                    onChange={handleChange}
-                    className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                  />
-                  <label className="ml-2 block text-sm text-gray-700">
-                    Enable Auto Reorder
-                  </label>
-                </div>
-
-                <div className="lg:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-2">Notes</label>
-                  <textarea
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleChange}
-                    rows={3}
-                    className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                    placeholder="Additional notes"
-                  />
-                </div>
-              </div>
-            </div>
-
-            <div className="flex flex-col sm:flex-row gap-3 pt-4 border-t">
-              <button
-                type="submit"
-                disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700 disabled:bg-blue-400 text-white px-6 py-2 rounded-lg font-medium transition-colors flex items-center justify-center gap-2"
-              >
-                {loading ? 'Saving...' : (editingId ? 'Update Item' : 'Add Item')}
-              </button>
-              
-              {editingId && (
-                <button
-                  type="button"
-                  onClick={cancelEdit}
-                  className="bg-gray-500 hover:bg-gray-600 text-white px-6 py-2 rounded-lg font-medium transition-colors"
-                >
-                  Cancel
-                </button>
-              )}
-            </div>
-          </form>
-        </div>
-      )}
-
-      <InventoryTable 
-        onEdit={handleEdit} 
-        refreshTrigger={refreshTable}
-      />
-
-      <div className="mt-6">
-        <InventoryTransactions />
+          {/* Form Actions */}
+          <div className="flex justify-end gap-3 pt-6 border-t">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={loading}
+              className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50"
+            >
+              {loading ? 'Saving...' : (item ? 'Update Item' : 'Add Item')}
+            </button>
+          </div>
+        </form>
       </div>
-
-      <div className="mt-6">
-        <RoomChecklist />
-      </div>
-
-      <Toaster position="top-right" />
     </div>
   );
+};
+
+InventoryForm.propTypes = {
+  item: PropTypes.object,
+  categories: PropTypes.array,
+  onClose: PropTypes.func.isRequired,
 };
 
 export default InventoryForm;

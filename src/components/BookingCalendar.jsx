@@ -11,24 +11,16 @@ import {
 } from "date-fns";
 import { GrLinkPrevious, GrLinkNext } from "react-icons/gr";
 
-const bookingData = {
-  "2025-07-10": "high",
-  "2025-07-15": "medium",
-  "2025-07-20": "low",
-  "2025-08-12": "medium",
-  "2025-08-25": "high",
-  "2025-09-03": "low",
-};
-
-const getColor = (dateStr) => {
-  const status = bookingData[dateStr];
-  if (status === "high") return "bg-red-500 text-white";
-  if (status === "medium") return "bg-amber-500 text-white";
-  if (status === "low") return "bg-green-500 text-white";
+const getColor = (dateStr, bookingData) => {
+  const dayBookings = bookingData[dateStr] || [];
+  const count = dayBookings.length;
+  if (count >= 3) return "bg-red-500 text-white";
+  if (count >= 2) return "bg-amber-500 text-white";
+  if (count >= 1) return "bg-green-500 text-white";
   return "";
 };
 
-const BookingCalendar = ({ isOpen, onClose }) => {
+const BookingCalendar = ({ isOpen, onClose, bookingData = {} }) => {
   const [currentMonth, setCurrentMonth] = useState(new Date());
 
   const prevMonth = () => {
@@ -96,12 +88,14 @@ const BookingCalendar = ({ isOpen, onClose }) => {
             ))}
             {days.map((day) => {
               const dayStr = format(day, "yyyy-MM-dd");
+              const dayBookings = bookingData[dayStr] || [];
               return (
                 <div
                   key={dayStr}
-                  className={`h-10 flex items-center justify-center rounded-full ${getColor(
-                    dayStr
+                  className={`h-10 flex items-center justify-center rounded-full cursor-pointer hover:opacity-80 ${getColor(
+                    dayStr, bookingData
                   )}`}
+                  title={dayBookings.length > 0 ? `${dayBookings.length} booking${dayBookings.length > 1 ? 's' : ''}` : ''}
                 >
                   {format(day, "d")}
                 </div>
@@ -113,15 +107,15 @@ const BookingCalendar = ({ isOpen, onClose }) => {
         <div className="flex gap-6 text-sm mt-6 justify-center">
           <div className="flex items-center">
             <span className="w-3 h-3 bg-red-500 rounded-full mr-2"></span>
-            High Bookings
+            3+ Bookings
           </div>
           <div className="flex items-center">
             <span className="w-3 h-3 bg-amber-500 rounded-full mr-2"></span>
-            Medium Bookings
+            2 Bookings
           </div>
           <div className="flex items-center">
             <span className="w-3 h-3 bg-green-500 rounded-full mr-2"></span>
-            Low Bookings
+            1 Booking
           </div>
         </div>
       </div>

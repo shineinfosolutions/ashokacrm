@@ -4,7 +4,7 @@
 
 class SoundManager {
   constructor() {
-    this.isEnabled = true;
+    this.enabled = true;
     this.audio = null;
     this.init();
   }
@@ -22,7 +22,7 @@ class SoundManager {
 
   // Play notification sound for new KOT
   playNewKOTSound() {
-    if (!this.isEnabled || !this.audio) return;
+    if (!this.enabled || !this.audio) return;
     
     try {
       this.audio.currentTime = 0;
@@ -32,17 +32,16 @@ class SoundManager {
     } catch (error) {
       console.warn('Error playing buzzer sound:', error);
     }
-
   }
 
   // Enable/disable sounds
   setEnabled(enabled) {
-    this.isEnabled = enabled;
+    this.enabled = enabled;
   }
 
   // Check if sounds are enabled
-  isAudioEnabled() {
-    return this.isEnabled;
+  isEnabled() {
+    return this.enabled;
   }
 }
 

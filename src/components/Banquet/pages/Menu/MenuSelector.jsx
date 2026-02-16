@@ -1,7 +1,6 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { useAppContext } from "../../../../context/AppContext";
-import useWebSocket from "../../../../hooks/useWebSocket";
 const MenuSelector = ({
   onSave,
   onSaveCategory,
@@ -12,7 +11,6 @@ const MenuSelector = ({
 }) => {
   const userRole = localStorage.getItem('role');
   const isAdmin = userRole?.toLowerCase() === 'admin';
-  console.log('👤 MenuSelector: User role:', userRole, 'isAdmin:', isAdmin);
   const { axios } = useAppContext();
   const [categories, setCategories] = useState([]);
   const [menuItems, setMenuItems] = useState([]);
@@ -23,106 +21,70 @@ const MenuSelector = ({
   const [newCategoryName, setNewCategoryName] = useState("");
   const [showAddCategory, setShowAddCategory] = useState(false);
 
-  // WebSocket connection for real-time updates
-  const { lastMessage, sendMessage } = useWebSocket();
-
-  // Handle real-time menu updates
-  useEffect(() => {
-    if (lastMessage) {
-      switch (lastMessage.type) {
-        case 'MENU_ITEM_CREATED':
-        case 'MENU_ITEM_UPDATED':
-        case 'MENU_ITEM_DELETED':
-          // Refresh menu items when any menu changes
-          fetchMenuItems().then(setMenuItems);
-          break;
-        case 'CATEGORY_CREATED':
-        case 'CATEGORY_UPDATED':
-        case 'CATEGORY_DELETED':
-          // Refresh categories when any category changes
-          fetchCategories().then(setCategories);
-          break;
-        default:
-          break;
-      }
-    }
-  }, [lastMessage]);
+  // WebSocket removed
+  const sendMessage = () => {};
 
   // API functions
   const fetchMenuItems = async () => {
-    const response = await axios.get('/api/menu-items');
+    const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/menu-items`);
     return response.data.success ? response.data.data : response.data;
   };
 
   const createMenuItem = async (itemData) => {
-    const response = await axios.post('/api/menu-items', itemData);
+    const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/menu-items`, itemData);
     return response.data;
   };
 
   const deleteMenuItem = async (itemId) => {
-    const response = await axios.delete(`/api/menu-items/${itemId}`);
+    const response = await axios.delete(`${import.meta.env.VITE_API_URL}/api/menu-items/${itemId}`);
     return response.data;
   };
 
   const deleteMenuItems = async () => {
-    const response = await axios.delete('/api/menu-items');
+    const response = await axios.delete(`${import.meta.env.VITE_API_URL}/api/menu-items`);
     return response.data;
   };
 
   const fetchCategories = async () => {
-    const response = await axios.get('/api/banquet-categories/all');
+    const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/banquet-categories/all`);
     return response.data;
   };
 
   const createCategory = async (categoryData) => {
-    const response = await axios.post('/api/banquet-categories/create', categoryData);
+    const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/banquet-categories/create`, categoryData);
     return response.data;
   };
 
   const fetchPlanLimits = async () => {
-    const response = await axios.get('/api/plan-limits/get');
+    const response = await axios.get(`${import.meta.env.VITE_API_URL}/api/plan-limits/get`);
     return response.data;
   };
 
   const createPlanLimits = async (limitsData) => {
-    const response = await axios.post('/api/plan-limits', limitsData);
+    const response = await axios.post(`${import.meta.env.VITE_API_URL}/api/plan-limits`, limitsData);
     return response.data;
   };
 
   // Sync selectedItems when initialItems changes
   useEffect(() => {
-    console.log('🔄 MenuSelector: initialItems changed:', initialItems);
-    console.log('📊 MenuSelector: initialItems length:', initialItems?.length || 0);
-    console.log('📝 MenuSelector: initialItems content:', initialItems);
-    
-    const newItems = initialItems || [];
-    console.log('🎯 MenuSelector: Setting selectedItems to:', newItems);
-    setSelectedItems(newItems);
+    setSelectedItems(initialItems || []);
   }, [initialItems]);
 
   // Fetch menu items, categories and plan limits
   useEffect(() => {
     const fetchData = async () => {
       try {
-        console.log('Fetching data...');
         const [menuData, categoriesData, limitsData] = await Promise.all([
           fetchMenuItems(),
           fetchCategories(),
           fetchPlanLimits()
         ]);
         
-        console.log('Categories response:', categoriesData);
-        console.log('Menu items response:', menuData);
-        console.log('Plan limits response:', limitsData);
-        
         // Handle categories with predefined order
         if (categoriesData) {
           const cats = Array.isArray(categoriesData) ? categoriesData : 
                       categoriesData.data ? categoriesData.data : 
                       categoriesData.categories ? categoriesData.categories : [];
-          
-          console.log('🍽️ MenuSelector: foodType received:', foodType);
-          console.log('📋 MenuSelector: All categories:', cats.map(c => c.cateName || c.name));
           
           // Define the desired order based on food type
           const vegCategoryOrder = [
@@ -136,20 +98,16 @@ const MenuSelector = ({
           ];
           
           const categoryOrder = foodType === 'Veg' ? vegCategoryOrder : nonVegCategoryOrder;
-          console.log('📝 MenuSelector: Using category order:', categoryOrder);
           
           // Filter categories based on food type
           const filteredCats = cats.filter(cat => {
             const catName = cat.cateName || cat.name;
             // For Veg, exclude any NON-VEG categories
             if (foodType === 'Veg' && (catName.includes('NON-VEG') || catName.includes('NON VEG'))) {
-              console.log('❌ MenuSelector: Filtering out NON-VEG category:', catName);
               return false;
             }
             return true;
           });
-          
-          console.log('✅ MenuSelector: Filtered categories:', filteredCats.map(c => c.cateName || c.name));
           
           const sortedCats = filteredCats.sort((a, b) => {
             const aName = a.cateName || a.name;
@@ -199,15 +157,10 @@ const MenuSelector = ({
 
   // Get items for current category filtered by foodType
   const currentCategoryItems = useMemo(() => {
-    console.log('Current category:', currentCategory);
-    console.log('Food type:', foodType);
-    console.log('Menu items:', menuItems);
-    
     if (!menuItems.length || !currentCategory) return [];
     
     return menuItems
       .filter(item => {
-        console.log('Checking item:', item);
         
         // Filter by category - handle different category formats
         let categoryMatch = false;
@@ -243,16 +196,10 @@ const MenuSelector = ({
   }, [menuItems, currentCategory, foodType]);
 
   const handleSelectItem = (item) => {
-    console.log('🔄 MenuSelector: Selecting item:', item);
-    console.log('📝 MenuSelector: Current selected items:', selectedItems);
-    console.log('📊 MenuSelector: Selected items length:', selectedItems.length);
     setSelectedItems(prev => {
       const isSelected = prev.includes(item);
-      console.log('✅ MenuSelector: Is selected:', isSelected);
-      console.log('🔍 MenuSelector: Checking if', item, 'is in', prev);
       if (isSelected) {
         const newItems = prev.filter(i => i !== item);
-        console.log('❌ MenuSelector: Removing item, new items:', newItems);
         
         // Auto-save immediately when item is removed
         setTimeout(() => {
@@ -260,10 +207,22 @@ const MenuSelector = ({
             const categorizedMenu = {};
             newItems.forEach(selectedItem => {
               const itemData = menuItems.find(mi => mi.name === selectedItem);
-              if (itemData?.category && typeof itemData.category === 'string') {
-                const match = itemData.category.match(/cateName:\s*['"]([^'"]+)['"]/); 
-                if (match) {
-                  const categoryName = match[1];
+              if (itemData?.category) {
+                let categoryName;
+                if (typeof itemData.category === 'string') {
+                  // Try to parse complex category format first
+                  const match = itemData.category.match(/cateName:\s*['"]([^'"]+)['"]/); 
+                  if (match) {
+                    categoryName = match[1];
+                  } else {
+                    // Use simple string category
+                    categoryName = itemData.category;
+                  }
+                } else if (typeof itemData.category === 'object') {
+                  categoryName = itemData.category.cateName || itemData.category.name;
+                }
+                
+                if (categoryName) {
                   if (!categorizedMenu[categoryName]) {
                     categorizedMenu[categoryName] = [];
                   }
@@ -287,21 +246,21 @@ const MenuSelector = ({
         
         const categoryLimit = matchingPlan?.limits?.[currentCategory];
         
-        console.log('Matching Plan:', matchingPlan);
-        console.log('Current Category:', currentCategory);
-        console.log('Category Limit:', categoryLimit);
-        
         if (categoryLimit) {
           const currentCategorySelectedCount = prev.filter(selectedItem => {
             const selectedItemData = menuItems.find(mi => mi.name === selectedItem);
-            if (selectedItemData?.category && typeof selectedItemData.category === 'string') {
-              const match = selectedItemData.category.match(/cateName:\s*['"]([^'"]+)['"]/);
-              return match && match[1] === currentCategory;
+            if (selectedItemData?.category) {
+              let categoryName;
+              if (typeof selectedItemData.category === 'string') {
+                const match = selectedItemData.category.match(/cateName:\s*['"]([^'"]+)['"]/);
+                categoryName = match ? match[1] : selectedItemData.category;
+              } else if (typeof selectedItemData.category === 'object') {
+                categoryName = selectedItemData.category.cateName || selectedItemData.category.name;
+              }
+              return categoryName === currentCategory;
             }
             return false;
           }).length;
-          
-          console.log('Current selected count for category:', currentCategorySelectedCount);
           
           if (currentCategorySelectedCount >= categoryLimit) {
             return prev;
@@ -310,7 +269,6 @@ const MenuSelector = ({
       }
       
       const newItems = [...prev, item];
-      console.log('➕ MenuSelector: Adding item, new items:', newItems);
       
       // Auto-save immediately when item is selected
       setTimeout(() => {
@@ -318,10 +276,22 @@ const MenuSelector = ({
           const categorizedMenu = {};
           newItems.forEach(selectedItem => {
             const itemData = menuItems.find(mi => mi.name === selectedItem);
-            if (itemData?.category && typeof itemData.category === 'string') {
-              const match = itemData.category.match(/cateName:\s*['"]([^'"]+)['"]/); 
-              if (match) {
-                const categoryName = match[1];
+            if (itemData?.category) {
+              let categoryName;
+              if (typeof itemData.category === 'string') {
+                // Try to parse complex category format first
+                const match = itemData.category.match(/cateName:\s*['"]([^'"]+)['"]/); 
+                if (match) {
+                  categoryName = match[1];
+                } else {
+                  // Use simple string category
+                  categoryName = itemData.category;
+                }
+              } else if (typeof itemData.category === 'object') {
+                categoryName = itemData.category.cateName || itemData.category.name;
+              }
+              
+              if (categoryName) {
                 if (!categorizedMenu[categoryName]) {
                   categorizedMenu[categoryName] = [];
                 }
@@ -347,11 +317,7 @@ const MenuSelector = ({
       setNewCategoryName("");
       setShowAddCategory(false);
       
-      // Send WebSocket notification
-      sendMessage({
-        type: 'CATEGORY_CREATED',
-        data: { name: newCategoryName }
-      });
+      // WebSocket notification removed
     } catch (error) {
       console.error('Error adding category:', error);
     }
@@ -366,11 +332,7 @@ const MenuSelector = ({
         setMenuItems(updatedItems);
         setSelectedItems(prev => prev.filter(i => i !== itemName));
         
-        // Send WebSocket notification
-        sendMessage({
-          type: 'MENU_ITEM_DELETED',
-          data: { name: itemName, id: item.id }
-        });
+        // WebSocket notification removed
       }
     } catch (error) {
       console.error('Error deleting menu item:', error);
@@ -395,10 +357,22 @@ const MenuSelector = ({
             const categorizedMenu = {};
             selectedItems.forEach(item => {
               const itemData = menuItems.find(mi => mi.name === item);
-              if (itemData?.category && typeof itemData.category === 'string') {
-                const match = itemData.category.match(/cateName:\s*['"]([^'"]+)['"]/); 
-                if (match) {
-                  const categoryName = match[1];
+              if (itemData?.category) {
+                let categoryName;
+                if (typeof itemData.category === 'string') {
+                  // Try to parse complex category format first
+                  const match = itemData.category.match(/cateName:\s*['"]([^'"]+)['"]/); 
+                  if (match) {
+                    categoryName = match[1];
+                  } else {
+                    // Use simple string category
+                    categoryName = itemData.category;
+                  }
+                } else if (typeof itemData.category === 'object') {
+                  categoryName = itemData.category.cateName || itemData.category.name;
+                }
+                
+                if (categoryName) {
                   if (!categorizedMenu[categoryName]) {
                     categorizedMenu[categoryName] = [];
                   }
@@ -508,9 +482,15 @@ const MenuSelector = ({
                     const categoryLimit = matchingPlan?.limits?.[currentCategory];
                     const currentCategorySelectedCount = selectedItems.filter(selectedItem => {
                       const selectedItemData = menuItems.find(mi => mi.name === selectedItem);
-                      if (selectedItemData?.category && typeof selectedItemData.category === 'string') {
-                        const match = selectedItemData.category.match(/cateName:\s*['"]([^'"]+)['"]/);
-                        return match && match[1] === currentCategory;
+                      if (selectedItemData?.category) {
+                        let categoryName;
+                        if (typeof selectedItemData.category === 'string') {
+                          const match = selectedItemData.category.match(/cateName:\s*['"]([^'"]+)['"]/);
+                          categoryName = match ? match[1] : selectedItemData.category;
+                        } else if (typeof selectedItemData.category === 'object') {
+                          categoryName = selectedItemData.category.cateName || selectedItemData.category.name;
+                        }
+                        return categoryName === currentCategory;
                       }
                       return false;
                     }).length;
@@ -572,9 +552,15 @@ const MenuSelector = ({
               if (limit) {
                 const currentCount = selectedItems.filter(item => {
                   const itemData = menuItems.find(mi => mi.name === item);
-                  if (itemData?.category && typeof itemData.category === 'string') {
-                    const match = itemData.category.match(/cateName:\s*['"]([^'"]+)['"]/);
-                    return match && match[1] === currentCategory;
+                  if (itemData?.category) {
+                    let categoryName;
+                    if (typeof itemData.category === 'string') {
+                      const match = itemData.category.match(/cateName:\s*['"]([^'"]+)['"]/);
+                      categoryName = match ? match[1] : itemData.category;
+                    } else if (typeof itemData.category === 'object') {
+                      categoryName = itemData.category.cateName || itemData.category.name;
+                    }
+                    return categoryName === currentCategory;
                   }
                   return false;
                 }).length;

@@ -20,7 +20,7 @@ const CustomerMenuChange = () => {
       setError(null);
       try {
         const res = await axios.get(
-          `https://ashoka-api.shineinfosolutions.in/api/menu/all/${customerRef}`
+          `${import.meta.env.VITE_API_URL}/api/menu/all/${customerRef}`
         );
         setBooking(res.data.booking);
         console.log(res.data.booking);
@@ -38,7 +38,7 @@ const CustomerMenuChange = () => {
     try {
       setLoading(true);
       await axios.put(
-        `https://ashoka-api.shineinfosolutions.in//api/menu/update/${customerRef}`,
+        `${import.meta.env.VITE_API_URL}/api/menu/update/${customerRef}`,
         { categorizedMenu }
       );
       toast.success("Menu updated successfully!");

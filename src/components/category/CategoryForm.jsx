@@ -1,7 +1,7 @@
 import React from "react";
 import { X } from "lucide-react";
-import { showToast } from "../../utils/toaster";
-import { validateRequired, validateMinLength } from "../../utils/validation";
+import toast from 'react-hot-toast';
+import { validateRequired } from "../../utils/validation";
 
 const CategoryForm = ({
   showModal,
@@ -50,9 +50,9 @@ const CategoryForm = ({
                 required
                 onBlur={(e) => {
                   if (!validateRequired(e.target.value)) {
-                    showToast.error('Category name is required');
-                  } else if (!validateMinLength(e.target.value, 2)) {
-                    showToast.error('Category name must be at least 2 characters');
+                    toast.error('Category name is required');
+                  } else if (e.target.value.trim().length < 2) {
+                    toast.error('Category name must be at least 2 characters');
                   }
                 }}
               />
@@ -70,9 +70,24 @@ const CategoryForm = ({
                 required
                 onBlur={(e) => {
                   if (!validateRequired(e.target.value)) {
-                    showToast.error('Category description is required');
+                    toast.error('Category description is required');
                   }
                 }}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium mb-1 text-text/70">
+                Base Price
+              </label>
+              <input
+                type="number"
+                name="basePrice"
+                value={currentCategory.basePrice || ''}
+                onChange={handleInputChange}
+                placeholder="Enter base price"
+                className="w-full p-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary"
+                min="0"
+                step="0.01"
               />
             </div>
 

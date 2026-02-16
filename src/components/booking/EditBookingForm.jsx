@@ -1,546 +1,11 @@
-// import React, { useState, useEffect } from 'react';
-// import { useLocation, useNavigate } from 'react-router-dom';
-// import { useAppContext } from '../../context/AppContext';
-// import { showToast } from '../../utils/toaster';
-// import {
-//   FaUser,
-//   FaPhone,
-//   FaCity,
-//   FaMapMarkedAlt,
-//   FaBuilding,
-//   FaGlobe,
-//   FaRegAddressCard,
-//   FaMobileAlt,
-//   FaEnvelope,
-//   FaMoneyCheckAlt,
-//   FaCalendarAlt,
-//   FaClock,
-//   FaDoorOpen,
-//   FaUsers,
-//   FaConciergeBell,
-//   FaInfoCircle,
-//   FaSuitcase,
-//   FaComments,
-//   FaFileInvoiceDollar,
-//   FaCheckCircle,
-//   FaSignInAlt,
-//   FaPassport,
-//   FaIdCard,
-//   FaCreditCard,
-//   FaCashRegister,
-//   FaAddressBook,
-//   FaRegListAlt,
-//   FaRegUser,
-//   FaRegCalendarPlus,
-//   FaRegCheckCircle,
-//   FaRegTimesCircle,
-//   FaRegUserCircle,
-//   FaRegCreditCard,
-//   FaRegStar,
-//   FaRegFlag,
-//   FaRegEdit,
-//   FaRegClone,
-//   FaRegCommentDots,
-//   FaRegFileAlt,
-//   FaRegCalendarCheck,
-//   FaRegCalendarTimes,
-//   FaRegMap,
-//   FaHotel,
-//   FaTimes,
-// } from "react-icons/fa";
-
-// // Apply golden theme
-// const themeStyles = `
-//   :root {
-//     --color-primary: hsl(45, 70%, 50%);
-//     --color-secondary: hsl(45, 71%, 69%);
-//     --color-accent: hsl(45, 100%, 80%);
-//     --color-background: hsl(45, 100%, 95%);
-//     --color-text: hsl(45, 100%, 20%);
-//     --color-border: hsl(45, 100%, 85%);
-//     --color-hover: hsl(45, 80%, 40%);
-//   }
-// `;
-
-// // Inject theme styles
-// if (typeof document !== 'undefined') {
-//   const styleElement = document.createElement('style');
-//   styleElement.textContent = themeStyles;
-//   document.head.appendChild(styleElement);
-// }
-
-// // Shadcn-like components
-// const Button = ({
-//   children,
-//   onClick,
-//   className = "",
-//   disabled,
-//   type = "button",
-//   variant = "default",
-// }) => {
-//   const baseClasses =
-//     "inline-flex items-center justify-center whitespace-nowrap rounded-md text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:opacity-50 h-9 px-4 py-2";
-//   const variants = {
-//     default: "bg-[hsl(45,43%,58%)] text-white border border-[hsl(45,43%,58%)] shadow hover:bg-[hsl(45,32%,46%)]",
-//     outline:
-//       "border border-[hsl(45,100%,85%)] bg-transparent hover:bg-[hsl(45,100%,95%)] hover:text-[hsl(45,100%,20%)]",
-//   };
-//   return (
-//     <button
-//       type={type}
-//       onClick={onClick}
-//       disabled={disabled}
-//       className={`${baseClasses} ${variants[variant]} ${className}`}
-//     >
-//       {children}
-//     </button>
-//   );
-// };
-
-// const Input = ({
-//   type,
-//   placeholder,
-//   value,
-//   onChange,
-//   className = "",
-//   ...props
-// }) => (
-//   <input
-//     type={type}
-//     placeholder={placeholder}
-//     value={value || ""}
-//     onChange={onChange}
-//     className={`flex h-9 w-full rounded-md border border-gray-300 bg-transparent px-3 py-1 text-sm shadow-sm transition-colors file:border-0 file:bg-transparent file:text-sm file:font-medium focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50 min-w-0 ${className}`}
-//     {...props}
-//   />
-// );
-
-// const Label = ({ children, htmlFor, className = "" }) => (
-//   <label
-//     htmlFor={htmlFor}
-//     className={`block text-sm font-medium text-gray-700 ${className}`}
-//   >
-//     {children}
-//   </label>
-// );
-
-// const Select = ({
-//   value,
-//   onChange,
-//   children,
-//   className = "",
-//   name,
-//   ...props
-// }) => (
-//   <select
-//     value={value}
-//     onChange={onChange}
-//     name={name}
-//     className={`flex h-9 w-full items-center justify-between rounded-md border border-gray-300 bg-transparent px-3 py-2 text-sm shadow-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 disabled:cursor-not-allowed disabled:opacity-50 truncate ${className}`}
-//     {...props}
-//   >
-//     {children}
-//   </select>
-// );
-
-// const Checkbox = ({ id, checked, onChange, className = "" }) => (
-//   <input
-//     type="checkbox"
-//     id={id}
-//     checked={checked}
-//     onChange={onChange}
-//     className={`h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500 ${className}`}
-//   />
-// );
-
-// const EditBookingForm = () => {
-//   const { axios } = useAppContext();
-//   const location = useLocation();
-//   const navigate = useNavigate();
-//   const [loading, setLoading] = useState(false);
-//   const booking = location.state?.editBooking;
-
-//   const [formData, setFormData] = useState({
-//     grcNo: booking?.grcNo || '',
-//     name: booking?.name || '',
-//     age: booking?.age || '',
-//     gender: booking?.gender || '',
-//     mobileNo: booking?.mobileNo || '',
-//     email: booking?.email || '',
-//     address: booking?.address || '',
-//     city: booking?.city || '',
-//     nationality: booking?.nationality || '',
-//     checkInDate: booking?.checkInDate ? new Date(booking.checkInDate).toISOString().split('T')[0] : '',
-//     checkOutDate: booking?.checkOutDate ? new Date(booking.checkOutDate).toISOString().split('T')[0] : '',
-//     roomNumber: booking?.roomNumber || '',
-//     planPackage: booking?.planPackage || '',
-//     noOfAdults: booking?.noOfAdults || 1,
-//     noOfChildren: booking?.noOfChildren || 0,
-//     rate: booking?.rate || 0,
-//     paymentMode: booking?.paymentMode || '',
-//     paymentStatus: booking?.paymentStatus || 'Pending',
-//     status: booking?.status || 'Booked',
-//     remark: booking?.remark || '',
-//     vip: booking?.vip || false,
-//   });
-
-//   const handleChange = (e) => {
-//     const { name, value, type, checked } = e.target;
-//     setFormData(prev => ({
-//       ...prev,
-//       [name]: type === 'checkbox' ? checked : value
-//     }));
-//   };
-
-//   const handleSubmit = async (e) => {
-//     e.preventDefault();
-//     setLoading(true);
-    
-//     try {
-//       const response = await axios.put(`/api/bookings/update/${booking._id}`, formData);
-//       showToast('Booking updated successfully!', 'success');
-//       navigate('/booking');
-//     } catch (error) {
-//       console.error('Error updating booking:', error);
-//       showToast('Failed to update booking', 'error');
-//     } finally {
-//       setLoading(false);
-//     }
-//   };
-
-//   useEffect(() => {
-//     if (!booking) {
-//       navigate('/booking');
-//     }
-//   }, [booking, navigate]);
-
-//   if (!booking) {
-//     return null;
-//   }
-
-//   return (
-//     <div className="min-h-screen" style={{backgroundColor: 'hsl(45, 100%, 95%)'}}>
-//       <header className="bg-white shadow-sm">
-//         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-//           <h1 className="text-2xl font-bold" style={{color: 'hsl(45, 100%, 20%)'}}>
-//             Edit Booking - {booking?.name}
-//           </h1>
-//         </div>
-//       </header>
-//       <main className="container mx-auto px-4 py-6">
-//         <div className="bg-white rounded-xl shadow-md overflow-hidden">
-//           <div className="p-6 space-y-8">
-//       <h3 className="text-2xl font-bold mb-4 text-center" style={{ color: 'hsl(45, 100%, 20%)' }}>
-//         Edit Booking: {booking?.name}
-//       </h3>
-//       <form onSubmit={handleSubmit} className="space-y-6">
-//         {/* Guest Details */}
-//         <section className="space-y-4">
-//           <div className="flex items-center space-x-3">
-//             <div className="p-2 rounded-full" style={{backgroundColor: 'hsl(45, 100%, 85%)'}}>
-//               <FaUser className="text-lg" style={{color: 'hsl(45, 43%, 58%)'}} />
-//             </div>
-//             <h2 className="text-xl font-semibold" style={{color: 'hsl(45, 100%, 20%)'}}>
-//               Guest Details
-//             </h2>
-//           </div>
-//           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-//             <div className="space-y-2">
-//               <Label htmlFor="grcNo">GRC No.</Label>
-//               <Input
-//                 id="grcNo"
-//                 name="grcNo"
-//                 value={formData.grcNo}
-//                 readOnly
-//                 className="bg-gray-100 cursor-not-allowed"
-//               />
-//             </div>
-//             <div className="space-y-2 sm:col-span-2">
-//               <Label htmlFor="name">Guest Name</Label>
-//               <Input
-//                 id="name"
-//                 name="name"
-//                 value={formData.name}
-//                 onChange={handleChange}
-//                 required
-//               />
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="age">Age</Label>
-//               <Input
-//                 id="age"
-//                 name="age"
-//                 type="number"
-//                 value={formData.age}
-//                 onChange={handleChange}
-//               />
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="gender">Gender</Label>
-//               <Select
-//                 id="gender"
-//                 name="gender"
-//                 value={formData.gender}
-//                 onChange={handleChange}
-//               >
-//                 <option value="">Select Gender</option>
-//                 <option value="Male">Male</option>
-//                 <option value="Female">Female</option>
-//                 <option value="Other">Other</option>
-//               </Select>
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="mobileNo">Mobile No</Label>
-//               <Input
-//                 id="mobileNo"
-//                 name="mobileNo"
-//                 type="tel"
-//                 value={formData.mobileNo}
-//                 onChange={handleChange}
-//               />
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="email">Email</Label>
-//               <Input
-//                 id="email"
-//                 name="email"
-//                 type="email"
-//                 value={formData.email}
-//                 onChange={handleChange}
-//               />
-//             </div>
-//             <div className="space-y-2 sm:col-span-2">
-//               <Label htmlFor="address">Address</Label>
-//               <Input
-//                 id="address"
-//                 name="address"
-//                 value={formData.address}
-//                 onChange={handleChange}
-//               />
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="city">City</Label>
-//               <Input
-//                 id="city"
-//                 name="city"
-//                 value={formData.city}
-//                 onChange={handleChange}
-//               />
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="nationality">Nationality</Label>
-//               <Input
-//                 id="nationality"
-//                 name="nationality"
-//                 value={formData.nationality}
-//                 onChange={handleChange}
-//               />
-//             </div>
-//             <div className="space-y-2 flex items-center gap-2">
-//               <Checkbox
-//                 id="vip"
-//                 checked={formData.vip}
-//                 onChange={handleChange}
-//                 name="vip"
-//               />
-//               <Label htmlFor="vip">VIP Guest</Label>
-//             </div>
-//           </div>
-//         </section>
-
-//         {/* Stay Information */}
-//         <section className="space-y-4">
-//           <div className="flex items-center space-x-3">
-//             <div className="p-2 rounded-full" style={{backgroundColor: 'hsl(45, 100%, 85%)'}}>
-//               <FaHotel className="text-lg" style={{color: 'hsl(45, 43%, 58%)'}} />
-//             </div>
-//             <h2 className="text-xl font-semibold" style={{color: 'hsl(45, 100%, 20%)'}}>
-//               Stay Information
-//             </h2>
-//           </div>
-//           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-//             <div className="space-y-2">
-//               <Label htmlFor="checkInDate">Check-in Date</Label>
-//               <Input
-//                 id="checkInDate"
-//                 name="checkInDate"
-//                 type="date"
-//                 value={formData.checkInDate}
-//                 onChange={handleChange}
-//               />
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="checkOutDate">Check-out Date</Label>
-//               <Input
-//                 id="checkOutDate"
-//                 name="checkOutDate"
-//                 type="date"
-//                 value={formData.checkOutDate}
-//                 onChange={handleChange}
-//               />
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="roomNumber">Room Number</Label>
-//               <Input
-//                 id="roomNumber"
-//                 name="roomNumber"
-//                 value={formData.roomNumber}
-//                 onChange={handleChange}
-//               />
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="planPackage">Package Plan</Label>
-//               <Select
-//                 id="planPackage"
-//                 name="planPackage"
-//                 value={formData.planPackage}
-//                 onChange={handleChange}
-//               >
-//                 <option value="">Select Package Plan</option>
-//                 <option value="EP">EP (European Plan)</option>
-//                 <option value="CP">CP (Continental Plan)</option>
-//                 <option value="MAP">MAP (Modified American Plan)</option>
-//                 <option value="AP">AP (American Plan)</option>
-//               </Select>
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="noOfAdults">Adults</Label>
-//               <Input
-//                 id="noOfAdults"
-//                 name="noOfAdults"
-//                 type="number"
-//                 min="1"
-//                 value={formData.noOfAdults}
-//                 onChange={handleChange}
-//               />
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="noOfChildren">Children</Label>
-//               <Input
-//                 id="noOfChildren"
-//                 name="noOfChildren"
-//                 type="number"
-//                 min="0"
-//                 value={formData.noOfChildren}
-//                 onChange={handleChange}
-//               />
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="status">Status</Label>
-//               <Select
-//                 id="status"
-//                 name="status"
-//                 value={formData.status}
-//                 onChange={handleChange}
-//               >
-//                 <option value="Booked">Booked</option>
-//                 <option value="Checked In">Checked In</option>
-//                 <option value="Checked Out">Checked Out</option>
-//                 <option value="Cancelled">Cancelled</option>
-//               </Select>
-//             </div>
-//           </div>
-//         </section>
-
-//         {/* Payment Details */}
-//         <section className="space-y-4">
-//           <div className="flex items-center space-x-3">
-//             <div className="p-2 rounded-full" style={{backgroundColor: 'hsl(45, 100%, 85%)'}}>
-//               <FaCreditCard className="text-lg" style={{color: 'hsl(45, 43%, 58%)'}} />
-//             </div>
-//             <h2 className="text-xl font-semibold" style={{color: 'hsl(45, 100%, 20%)'}}>
-//               Payment Details
-//             </h2>
-//           </div>
-//           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-//             <div className="space-y-2">
-//               <Label htmlFor="rate">Rate</Label>
-//               <Input
-//                 id="rate"
-//                 name="rate"
-//                 type="number"
-//                 value={formData.rate}
-//                 onChange={handleChange}
-//               />
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="paymentMode">Payment Mode</Label>
-//               <Select
-//                 id="paymentMode"
-//                 name="paymentMode"
-//                 value={formData.paymentMode}
-//                 onChange={handleChange}
-//               >
-//                 <option value="">Select Payment Mode</option>
-//                 <option value="Cash">Cash</option>
-//                 <option value="Card">Card</option>
-//                 <option value="UPI">UPI</option>
-//                 <option value="Bank Transfer">Bank Transfer</option>
-//               </Select>
-//             </div>
-//             <div className="space-y-2">
-//               <Label htmlFor="paymentStatus">Payment Status</Label>
-//               <Select
-//                 id="paymentStatus"
-//                 name="paymentStatus"
-//                 value={formData.paymentStatus}
-//                 onChange={handleChange}
-//               >
-//                 <option value="Pending">Pending</option>
-//                 <option value="Paid">Paid</option>
-//                 <option value="Failed">Failed</option>
-//                 <option value="Partial">Partial</option>
-//               </Select>
-//             </div>
-//           </div>
-//         </section>
-
-//         {/* Remarks */}
-//         <section className="space-y-4">
-//           <div className="space-y-2">
-//             <Label htmlFor="remark">Remarks</Label>
-//             <textarea
-//               id="remark"
-//               name="remark"
-//               value={formData.remark}
-//               onChange={handleChange}
-//               className="flex w-full rounded-md bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
-//               style={{ border: '1px solid hsl(45, 100%, 85%)', color: 'hsl(45, 100%, 20%)' }}
-//               rows="3"
-//             />
-//           </div>
-//         </section>
-
-//         {/* Action Buttons */}
-//         <div className="flex justify-end gap-4 mt-6">
-//           <Button
-//             type="button"
-//             onClick={() => navigate('/booking')}
-//             variant="outline"
-//             disabled={loading}
-//           >
-//             Cancel
-//           </Button>
-//           <Button
-//             type="submit"
-//             disabled={loading}
-//           >
-//             {loading ? 'Updating...' : 'Update Booking'}
-//           </Button>
-//         </div>
-//       </form>
-//           </div>
-//         </div>
-//       </main>
-//     </div>
-//   );
-// };
-
-// export default EditBookingForm;
-import React, { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useRef } from 'react';
+import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { useAppContext } from '../../context/AppContext';
+import { useAuth } from '../../context/AuthContext';
 import { showToast } from '../../utils/toaster';
+import RoomServiceOrders from './RoomServiceOrders';
+import RestaurantOrders from './RestaurantOrders';
+import BackButton from '../common/BackButton';
 import {
   FaUser,
   FaPhone,
@@ -694,9 +159,11 @@ const Checkbox = ({ id, checked, onChange, className = "" }) => (
 
 const EditBookingForm = () => {
   const { axios } = useAppContext();
+  const { hasRole } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
-  const editBooking = location.state?.editBooking;
+  const { bookingId } = useParams();
+  const [editBooking, setEditBooking] = useState(location.state?.editBooking || null);
 
   const [allCategories, setAllCategories] = useState([]);
   const [allRooms, setAllRooms] = useState([]);
@@ -708,9 +175,20 @@ const EditBookingForm = () => {
     newCheckOutDate: '',
     reason: ''
   });
+  const [amendingStay, setAmendingStay] = useState(false);
+  const [showCompanyDetails, setShowCompanyDetails] = useState(false);
+  const [roomServiceOrders, setRoomServiceOrders] = useState([]);
+  const [restaurantOrders, setRestaurantOrders] = useState([]);
+  const [laundryOrders, setLaundryOrders] = useState([]);
+  const [isNavigating, setIsNavigating] = useState(false);
+  const [editingOrder, setEditingOrder] = useState(null);
+  const [editItems, setEditItems] = useState([]);
+  const [formInitialized, setFormInitialized] = useState(false);
+
 
   const [formData, setFormData] = useState({
     grcNo: '',
+    invoiceNumber: '',
     reservationId: '',
     categoryId: '',
     bookingDate: new Date().toISOString().split('T')[0],
@@ -746,8 +224,8 @@ const EditBookingForm = () => {
     noOfChildren: 0,
     roomGuestDetails: [],
     rate: 0,
-    cgstRate: 2.5,
-    sgstRate: 2.5,
+    cgstRate: 0,
+    sgstRate: 0,
     taxIncluded: false,
     serviceCharge: false,
     arrivedFrom: '',
@@ -758,8 +236,11 @@ const EditBookingForm = () => {
     purposeOfVisit: '',
     discountPercent: 0,
     discountRoomSource: 0,
+    discountNotes: '',
+    nonChargeable: false,
     paymentMode: '',
-    paymentStatus: 'Pending',
+    paymentStatus: false,
+    transactionId: '',
     bookingRefNo: '',
     mgmtBlock: 'No',
     billingInstruction: '',
@@ -767,11 +248,22 @@ const EditBookingForm = () => {
     fromCSV: false,
     epabx: false,
     vip: false,
-    status: 'Booked'
+    status: 'Booked',
+    advancePayments: [],
+    totalAdvanceAmount: 0,
+    balanceAmount: 0
   });
 
   useEffect(() => {
-    if (editBooking) {
+    if (!editBooking) {
+      navigate('/booking');
+    }
+  }, [editBooking, navigate]);
+
+
+
+  useEffect(() => {
+    if (editBooking && !formInitialized) {
       // Extract category ID properly
       const categoryId = typeof editBooking.categoryId === 'object' 
         ? editBooking.categoryId._id || editBooking.categoryId.id
@@ -791,8 +283,14 @@ const EditBookingForm = () => {
         setSelectedRooms(existingRooms);
       }
       
+      // Set company details visibility
+      if (editBooking.companyName || editBooking.companyGSTIN) {
+        setShowCompanyDetails(true);
+      }
+      
       setFormData({
         grcNo: editBooking.grcNo || '',
+        invoiceNumber: editBooking.invoiceNumber || '',
         reservationId: editBooking.reservationId || '',
         categoryId: categoryId || '',
         bookingDate: editBooking.bookingDate ? new Date(editBooking.bookingDate).toISOString().split('T')[0] : new Date().toISOString().split('T')[0],
@@ -829,8 +327,8 @@ const EditBookingForm = () => {
         roomGuestDetails: editBooking.roomGuestDetails || [],
         extraBedCharge: editBooking.extraBedCharge || 500,
         rate: editBooking.taxableAmount || editBooking.rate || 0,
-        cgstRate: editBooking.cgstRate !== undefined ? editBooking.cgstRate * 100 : 2.5,
-        sgstRate: editBooking.sgstRate !== undefined ? editBooking.sgstRate * 100 : 2.5,
+        cgstRate: editBooking.cgstRate !== undefined ? (editBooking.cgstRate * 100) : 0,
+        sgstRate: editBooking.sgstRate !== undefined ? (editBooking.sgstRate * 100) : 0,
         taxIncluded: editBooking.taxIncluded || false,
         serviceCharge: editBooking.serviceCharge || false,
         arrivedFrom: editBooking.arrivedFrom || '',
@@ -841,8 +339,11 @@ const EditBookingForm = () => {
         purposeOfVisit: editBooking.purposeOfVisit || '',
         discountPercent: editBooking.discountPercent || 0,
         discountRoomSource: editBooking.discountRoomSource || 0,
+        discountNotes: editBooking.discountNotes || '',
+        nonChargeable: editBooking.nonChargeable || false,
         paymentMode: editBooking.paymentMode || '',
-        paymentStatus: editBooking.paymentStatus || 'Pending',
+        paymentStatus: editBooking.paymentStatus || false,
+        transactionId: editBooking.transactionId || '',
         bookingRefNo: editBooking.bookingRefNo || '',
         mgmtBlock: editBooking.mgmtBlock || 'No',
         billingInstruction: editBooking.billingInstruction || '',
@@ -850,12 +351,14 @@ const EditBookingForm = () => {
         fromCSV: editBooking.fromCSV || false,
         epabx: editBooking.epabx || false,
         vip: editBooking.vip || false,
-        status: editBooking.status || 'Booked'
+        status: editBooking.status || 'Booked',
+        advancePayments: editBooking.advancePayments || [],
+        totalAdvanceAmount: editBooking.totalAdvanceAmount || 0,
+        balanceAmount: editBooking.balanceAmount || 0
       });
-    } else {
-      navigate('/booking');
+      setFormInitialized(true);
     }
-  }, [editBooking, navigate]);
+  }, [editBooking, navigate, formInitialized]);
 
   const fetchAllData = async () => {
     try {
@@ -969,12 +472,11 @@ const EditBookingForm = () => {
       
       // Add extra bed charges if applicable
       const extraBedCharge = formData.extraBed ? Number(formData.extraBedCharge || 0) : 0;
-      const finalTaxableAmount = roomRate + extraBedCharge;
+      const subtotal = roomRate + extraBedCharge;
       
-      // Calculate taxes
-      const cgstAmount = finalTaxableAmount * (formData.cgstRate / 100);
-      const sgstAmount = finalTaxableAmount * (formData.sgstRate / 100);
-      const finalRate = finalTaxableAmount + cgstAmount + sgstAmount;
+      // Apply discount to get the final taxable amount
+      const discountAmount = subtotal * (Number(formData.discountPercent || 0) / 100);
+      const finalTaxableAmount = subtotal - discountAmount;
       
       setFormData(prevForm => ({
         ...prevForm,
@@ -1023,12 +525,90 @@ const EditBookingForm = () => {
   };
 
   useEffect(() => {
-    fetchAllData();
-  }, []);
+    if (editBooking && !formInitialized) {
+      fetchAllData();
+      fetchRoomServiceOrders();
+    }
+  }, [editBooking, formInitialized]);
+
+
+
+
+
+
+
+  const fetchRoomServiceOrders = async () => {
+    if (!editBooking?._id) return;
+    
+    try {
+      const token = localStorage.getItem('token');
+      
+      // Fetch room service orders by booking ID
+      const roomServiceResponse = await axios.get('/api/room-service/all', {
+        headers: { 'Authorization': `Bearer ${token}` },
+        params: { bookingId: editBooking._id }
+      });
+      
+      // Fetch restaurant orders by booking ID and booking number
+      const restaurantResponse = await axios.get('/api/restaurant-orders/all', {
+        headers: { 'Authorization': `Bearer ${token}` },
+        params: { 
+          bookingId: editBooking._id,
+          bookingNumber: editBooking.grcNo
+        }
+      });
+      
+      const roomServiceData = roomServiceResponse.data.orders || [];
+      const restaurantData = restaurantResponse.data || [];
+      
+      // Filter out cancelled room service orders for edit booking form
+      const filteredRoomService = roomServiceData.filter(order => 
+        order.status !== 'cancelled' && order.status !== 'canceled'
+      );
+      
+      // Filter restaurant orders by booking ID, booking number, or room number
+      const roomNumbers = editBooking.roomNumber ? editBooking.roomNumber.split(',').map(num => num.trim()) : [];
+      const filteredRestaurant = restaurantData.filter(order => {
+        // Match only by booking ID or booking number
+        const matchesBookingId = (order.bookingId && order.bookingId._id === editBooking._id) || order.bookingId === editBooking._id;
+        const matchesBookingNumber = order.bookingNumber === editBooking.grcNo;
+        
+        const isForThisBooking = matchesBookingId || matchesBookingNumber;
+        const isNotCancelled = order.status !== 'cancelled' && order.status !== 'canceled';
+        
+        return isForThisBooking && isNotCancelled;
+      });
+      
+      // Fetch laundry orders by room number and GRC
+      const laundryResponse = await axios.get('/api/laundry/all', {
+        headers: { 'Authorization': `Bearer ${token}` },
+        params: {
+          search: editBooking.roomNumber || editBooking.grcNo
+        }
+      });
+      
+      // Filter laundry orders by room number or GRC
+      const allLaundryOrders = laundryResponse.data.orders || laundryResponse.data || [];
+      const filteredLaundry = allLaundryOrders.filter(order => {
+        const matchesRoom = roomNumbers.some(roomNum => order.roomNumber === roomNum);
+        const matchesGRC = order.grcNo === editBooking.grcNo;
+        const matchesBooking = order.bookingId === editBooking._id;
+        const isNotCancelled = order.laundryStatus !== 'cancelled' && order.laundryStatus !== 'canceled';
+        
+        return (matchesRoom || matchesGRC || matchesBooking) && isNotCancelled;
+      });
+      
+      setRoomServiceOrders(filteredRoomService);
+      setRestaurantOrders(filteredRestaurant);
+      setLaundryOrders(filteredLaundry);
+    } catch (error) {
+      console.error('Error fetching orders:', error);
+    }
+  };
 
   // Update selectedRooms with real room data when allRooms is loaded
   useEffect(() => {
-    if (allRooms.length > 0 && editBooking?.roomNumber && selectedRooms.length > 0) {
+    if (allRooms.length > 0 && editBooking?.roomNumber && formInitialized) {
       const existingRoomNumbers = editBooking.roomNumber.split(',').map(num => num.trim());
       const realSelectedRooms = allRooms.filter(room => 
         existingRoomNumbers.includes(room.room_number.toString())
@@ -1091,7 +671,7 @@ const EditBookingForm = () => {
         setSelectedRooms(updatedRooms);
       }
     }
-  }, [allRooms, editBooking]);
+  }, [allRooms, editBooking, formInitialized]);
 
   useEffect(() => {
     const checkIn = new Date(formData.checkInDate);
@@ -1113,6 +693,15 @@ const EditBookingForm = () => {
   // Recalculate rate when extra bed changes
   useEffect(() => {
     if (selectedRooms.length > 0 && formData.days > 0) {
+      // If non-chargeable, set rate to 0
+      if (formData.nonChargeable) {
+        setFormData(prev => ({ 
+          ...prev, 
+          rate: 0
+        }));
+        return;
+      }
+      
       const totalRoomRate = selectedRooms.reduce((sum, room) => {
         const rate = room.customPrice !== undefined && room.customPrice !== '' && room.customPrice !== null
           ? Number(room.customPrice) 
@@ -1136,14 +725,41 @@ const EditBookingForm = () => {
         
         return sum + ((formData.extraBedCharge || 0) * Math.max(0, extraBedDays));
       }, 0);
-      const finalRate = roomRate + extraBedCharge;
+      const roomSubtotal = roomRate + extraBedCharge;
       
+      // Store the room subtotal (before discount) in rate field
       setFormData(prev => ({ 
         ...prev, 
-        rate: finalRate
+        rate: roomSubtotal
       }));
     }
-  }, [selectedRooms.map(r => `${r.customPrice}-${r.extraBed}-${r.extraBedStartDate}`).join(','), formData.days, formData.extraBedCharge, formData.checkInDate, formData.checkOutDate]);
+  }, [selectedRooms.length, formData.days, formData.extraBedCharge, formData.checkInDate, formData.checkOutDate, formData.nonChargeable, formData.discountPercent]);
+
+  // Recalculate rate when discount changes
+  useEffect(() => {
+    if (selectedRooms.length > 0 && formData.days > 0) {
+      const totalRoomRate = selectedRooms.reduce((sum, room) => {
+        const rate = room.customPrice !== undefined && room.customPrice !== '' && room.customPrice !== null
+          ? Number(room.customPrice) 
+          : (room.price || 0);
+        return sum + rate;
+      }, 0);
+      
+      const roomRate = totalRoomRate * formData.days;
+      const extraBedCharge = selectedRooms.reduce((sum, room) => {
+        if (!room.extraBed) return sum;
+        const startDate = new Date(room.extraBedStartDate || new Date().toISOString().split('T')[0]);
+        const endDate = new Date(formData.checkOutDate);
+        if (startDate >= endDate) return sum;
+        const timeDiff = endDate.getTime() - startDate.getTime();
+        const extraBedDays = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+        return sum + ((formData.extraBedCharge || 0) * Math.max(0, extraBedDays));
+      }, 0);
+      const roomSubtotal = roomRate + extraBedCharge;
+      // Store the room subtotal (before discount) in rate field
+      setFormData(prev => ({ ...prev, rate: roomSubtotal }));
+    }
+  }, [formData.discountPercent]);
 
   // Recalculate totals when tax rates change
   useEffect(() => {
@@ -1159,14 +775,15 @@ const EditBookingForm = () => {
       const extraBedCharge = selectedRooms.reduce((sum, room) => {
         return sum + (room.extraBed ? (formData.extraBedCharge || 0) * formData.days : 0);
       }, 0);
-      const finalRate = roomRate + extraBedCharge;
+      const roomSubtotal = roomRate + extraBedCharge;
       
+      // Store the room subtotal (before discount) in rate field
       setFormData(prev => ({ 
         ...prev, 
-        rate: finalRate
+        rate: roomSubtotal
       }));
     }
-  }, [formData.cgstRate, formData.sgstRate]);
+  }, [formData.cgstRate, formData.sgstRate, formData.discountPercent]);
 
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
@@ -1185,10 +802,10 @@ const EditBookingForm = () => {
       const reader = new FileReader();
       reader.onloadend = () => {
         setFormData(prev => ({ ...prev, [name]: reader.result }));
-        showToast(`${name === 'idProofImageUrl' ? 'ID Proof Image 1' : 'ID Proof Image 2'} uploaded successfully`, 'success');
+        showToast.success(`${name === 'idProofImageUrl' ? 'ID Proof Image 1' : 'ID Proof Image 2'} uploaded successfully`);
       };
       reader.onerror = () => {
-        showToast('Failed to upload image', 'error');
+        showToast.error('Failed to upload image');
       };
       reader.readAsDataURL(file);
     }
@@ -1222,6 +839,7 @@ const EditBookingForm = () => {
       return;
     }
 
+    setAmendingStay(true);
     try {
       const response = await axios.post(`/api/bookings/amend/${editBooking._id}`, amendmentData);
       showToast.success('Booking stay amended successfully!');
@@ -1243,11 +861,16 @@ const EditBookingForm = () => {
       console.error('Error amending booking:', error);
       const errorMessage = error.response?.data?.error || error.message || 'Failed to amend booking';
       showToast.error(errorMessage);
+    } finally {
+      setAmendingStay(false);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    
+    if (loading || isNavigating || editingOrder) return; // Prevent submission while editing orders
+    setLoading(true);
     
     try {
       // Calculate extra bed status
@@ -1275,10 +898,8 @@ const EditBookingForm = () => {
       
       const updateData = {
         ...formData,
-        // Remove reservationId if it's empty to avoid MongoDB casting error
-        reservationId: formData.reservationId || undefined,
-        cgstRate: formData.cgstRate / 100,
-        sgstRate: formData.sgstRate / 100,
+        cgstRate: formData.cgstRate,
+        sgstRate: formData.sgstRate,
         extraBed: hasExtraBed,
         extraBedCharge: formData.extraBedCharge || 0,
         taxableAmount: taxableAmount,
@@ -1295,22 +916,22 @@ const EditBookingForm = () => {
         })),
         extraBedRooms: selectedRooms.filter(room => room.extraBed).map(room => room.room_number)
       };
-      
-      // Clean up empty reservationId to prevent MongoDB casting errors
-      if (!updateData.reservationId) {
-        delete updateData.reservationId;
-      }
 
       console.log('Sending update data:', updateData);
       const response = await axios.put(`/api/bookings/update/${editBooking._id}`, updateData);
       console.log('Update response:', response.data);
       showToast.success('Booking updated successfully!');
-      navigate('/booking');
+      // Navigate immediately after showing toast
+      setTimeout(() => {
+        navigate('/booking');
+      }, 1000);
     } catch (error) {
       console.error('Error updating booking:', error);
       console.error('Error response:', error.response?.data);
       const errorMessage = error.response?.data?.error || error.message || 'Failed to update booking';
       showToast.error(errorMessage);
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -1329,15 +950,24 @@ const EditBookingForm = () => {
     <div className="min-h-screen" style={{backgroundColor: 'hsl(45, 100%, 95%)'}}>
       <header className="bg-white shadow-sm">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-2xl font-bold" style={{color: 'hsl(45, 100%, 20%)'}}>
-            Edit Booking - {formData.name}
-          </h1>
+          <div className="flex items-center gap-4">
+            <BackButton to="/booking" />
+            <h1 className="text-2xl font-bold" style={{color: 'hsl(45, 100%, 20%)'}}>
+              Edit Booking - {formData.name}
+            </h1>
+          </div>
         </div>
       </header>
       <main className="container mx-auto px-4 py-6">
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
           <div className="p-6 space-y-8">
-            <form onSubmit={handleSubmit} className="space-y-8">
+            <form onSubmit={(e) => {
+              if (editingOrder) {
+                e.preventDefault();
+                return false;
+              }
+              handleSubmit(e);
+            }} className="space-y-8" noValidate>
               {/* Guest Details Section */}
               <section className="space-y-4">
                 <div className="flex items-center space-x-3">
@@ -1355,6 +985,16 @@ const EditBookingForm = () => {
                       id="grcNo"
                       name="grcNo"
                       value={formData.grcNo}
+                      readOnly
+                      className="bg-gray-100 border border-gray-300 rounded-lg cursor-not-allowed"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="invoiceNumber">Invoice No.</Label>
+                    <Input
+                      id="invoiceNumber"
+                      name="invoiceNumber"
+                      value={formData.invoiceNumber}
                       readOnly
                       className="bg-gray-100 border border-gray-300 rounded-lg cursor-not-allowed"
                     />
@@ -1460,24 +1100,41 @@ const EditBookingForm = () => {
                       onChange={handleChange}
                     />
                   </div>
-                  <div className="space-y-2 sm:col-span-2">
-                    <Label htmlFor="companyName">Company Name</Label>
-                    <Input
-                      id="companyName"
-                      name="companyName"
-                      value={formData.companyName}
-                      onChange={handleChange}
+                  <div className="space-y-2 flex items-center gap-2 sm:col-span-2 lg:col-span-3">
+                    <Checkbox
+                      id="showCompanyDetails"
+                      checked={showCompanyDetails}
+                      onChange={(e) => {
+                        setShowCompanyDetails(e.target.checked);
+                        if (!e.target.checked) {
+                          setFormData(prev => ({ ...prev, companyName: '', companyGSTIN: '' }));
+                        }
+                      }}
                     />
+                    <Label htmlFor="showCompanyDetails">Company Details</Label>
                   </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="companyGSTIN">Company GSTIN</Label>
-                    <Input
-                      id="companyGSTIN"
-                      name="companyGSTIN"
-                      value={formData.companyGSTIN}
-                      onChange={handleChange}
-                    />
-                  </div>
+                  {showCompanyDetails && (
+                    <>
+                      <div className="space-y-2 sm:col-span-2 lg:col-span-3">
+                        <Label htmlFor="companyName">Company Name</Label>
+                        <Input
+                          id="companyName"
+                          name="companyName"
+                          value={formData.companyName}
+                          onChange={handleChange}
+                        />
+                      </div>
+                      <div className="space-y-2 sm:col-span-2">
+                        <Label htmlFor="companyGSTIN">Company GSTIN</Label>
+                        <Input
+                          id="companyGSTIN"
+                          name="companyGSTIN"
+                          value={formData.companyGSTIN}
+                          onChange={handleChange}
+                        />
+                      </div>
+                    </>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="idProofType">ID Proof Type</Label>
                     <Select
@@ -1505,7 +1162,8 @@ const EditBookingForm = () => {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="idProofImageUrl">ID Proof Image 1</Label>
+                    <Label htmlFor="idProofImageUrl">ID Proof Image 1 (Optional)</Label>
+                    <p className="text-xs text-gray-500">Images are optional - you can update booking without uploading ID proof images</p>
                     <div className="flex gap-2">
                       <Input 
                         id="idProofImageUrl" 
@@ -1544,7 +1202,7 @@ const EditBookingForm = () => {
                                 canvas.getContext('2d').drawImage(modalVideo, 0, 0);
                                 const imageData = canvas.toDataURL('image/jpeg');
                                 setFormData(prev => ({ ...prev, idProofImageUrl: imageData }));
-                                showToast('ID Proof Image 1 captured successfully', 'success');
+                                showToast.success('ID Proof Image 1 captured successfully');
                                 stream.getTracks().forEach(track => track.stop());
                                 document.body.removeChild(modal);
                               };
@@ -1553,7 +1211,7 @@ const EditBookingForm = () => {
                                 document.body.removeChild(modal);
                               };
                             })
-                            .catch(() => showToast('Camera access denied', 'error'));
+                            .catch(() => showToast.error('Camera access denied'));
                         }}
                         className="px-3 py-1 text-sm"
                       >
@@ -1572,7 +1230,7 @@ const EditBookingForm = () => {
                     )}
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="idProofImageUrl2">ID Proof Image 2</Label>
+                    <Label htmlFor="idProofImageUrl2">ID Proof Image 2 (Optional)</Label>
                     <div className="flex gap-2">
                       <Input 
                         id="idProofImageUrl2" 
@@ -1611,7 +1269,7 @@ const EditBookingForm = () => {
                                 canvas.getContext('2d').drawImage(modalVideo, 0, 0);
                                 const imageData = canvas.toDataURL('image/jpeg');
                                 setFormData(prev => ({ ...prev, idProofImageUrl2: imageData }));
-                                showToast('ID Proof Image 2 captured successfully', 'success');
+                                showToast.success('ID Proof Image 2 captured successfully');
                                 stream.getTracks().forEach(track => track.stop());
                                 document.body.removeChild(modal);
                               };
@@ -1620,7 +1278,7 @@ const EditBookingForm = () => {
                                 document.body.removeChild(modal);
                               };
                             })
-                            .catch(() => showToast('Camera access denied', 'error'));
+                            .catch(() => showToast.error('Camera access denied'));
                         }}
                         className="px-3 py-1 text-sm"
                       >
@@ -1676,12 +1334,15 @@ const EditBookingForm = () => {
                 </div>
                 <hr className="my-6 border-gray-200" />
                 <div className="space-y-4">
-                  <h3 className="text-lg font-semibold text-gray-700">Guest Photo Upload</h3>
+                  <h3 className="text-lg font-semibold text-gray-700">Guest Photo Upload (Optional)</h3>
+                  <p className="text-sm text-gray-600 mb-4">
+                    💡 Photo upload is completely optional. You can update booking without uploading any images.
+                  </p>
                   
                   {/* Photo Upload Options */}
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                       <div className="space-y-2">
-                          <Label htmlFor="photoUpload">Upload Photo from Device</Label>
+                          <Label htmlFor="photoUpload">Upload Photo from Device (Optional)</Label>
                           <div className="flex gap-2">
                             <Input 
                                 id="photoUpload" 
@@ -1693,10 +1354,10 @@ const EditBookingForm = () => {
                                         const reader = new FileReader();
                                         reader.onloadend = () => {
                                             setFormData(prev => ({ ...prev, photoUrl: reader.result }));
-                                            showToast('Photo uploaded successfully', 'success');
+                                            showToast.success('Photo uploaded successfully');
                                         };
                                         reader.onerror = () => {
-                                            showToast('Failed to upload image', 'error');
+                                            showToast.error('Failed to upload image');
                                         };
                                         reader.readAsDataURL(file);
                                     }
@@ -1732,7 +1393,7 @@ const EditBookingForm = () => {
                                       canvas.getContext('2d').drawImage(modalVideo, 0, 0);
                                       const imageData = canvas.toDataURL('image/jpeg');
                                       setFormData(prev => ({ ...prev, photoUrl: imageData }));
-                                      showToast('Guest photo captured successfully', 'success');
+                                      showToast.success('Guest photo captured successfully');
                                       stream.getTracks().forEach(track => track.stop());
                                       document.body.removeChild(modal);
                                     };
@@ -1741,7 +1402,7 @@ const EditBookingForm = () => {
                                       document.body.removeChild(modal);
                                     };
                                   })
-                                  .catch(() => showToast('Camera access denied', 'error'));
+                                  .catch(() => showToast.error('Camera access denied'));
                               }}
                               className="px-3 py-1 text-sm"
                             >
@@ -1763,16 +1424,17 @@ const EditBookingForm = () => {
                 </div>
               </section>
 
-              {/* Room & Availability Section */}
-              <section className="space-y-4">
-                <div className="flex items-center space-x-3">
-                  <div className="p-2 rounded-full" style={{backgroundColor: 'hsl(45, 100%, 85%)'}}>
-                    <FaHotel className="text-lg" style={{color: 'hsl(45, 43%, 58%)'}} />
+              {/* Room & Availability Section - Disabled for Checked Out bookings */}
+              {formData.status !== 'Checked Out' && (
+                <section className="space-y-4">
+                  <div className="flex items-center space-x-3">
+                    <div className="p-2 rounded-full" style={{backgroundColor: 'hsl(45, 100%, 85%)'}}>
+                      <FaHotel className="text-lg" style={{color: 'hsl(45, 43%, 58%)'}} />
+                    </div>
+                    <h2 className="text-xl font-semibold" style={{color: 'hsl(45, 100%, 20%)'}}>
+                      Room & Availability
+                    </h2>
                   </div>
-                  <h2 className="text-xl font-semibold" style={{color: 'hsl(45, 100%, 20%)'}}>
-                    Room & Availability
-                  </h2>
-                </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <div className="space-y-2">
                     <Label htmlFor="checkInDate">Check-in Date</Label>
@@ -1916,8 +1578,9 @@ const EditBookingForm = () => {
                   </div>
                 )}
               </section>
+              )}
 
-              {/* Stay Information Section */}
+              {/* Stay Information Section - Limited for Checked Out bookings */}
               <section className="space-y-4">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 rounded-full" style={{backgroundColor: 'hsl(45, 100%, 85%)'}}>
@@ -1928,6 +1591,21 @@ const EditBookingForm = () => {
                   </h2>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                  {formData.status === 'Checked Out' && (
+                    <div className="col-span-full bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-4">
+                      <div className="flex items-center">
+                        <div className="text-yellow-600 mr-3">
+                          <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 20 20">
+                            <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                          </svg>
+                        </div>
+                        <div>
+                          <h4 className="text-yellow-800 font-medium">Checked Out Booking</h4>
+                          <p className="text-yellow-700 text-sm">Room rates and charges cannot be modified for checked-out bookings. Only guest details can be updated.</p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="numberOfRooms">Number of Rooms</Label>
                     <Input
@@ -2013,12 +1691,19 @@ const EditBookingForm = () => {
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="planPackage">Package Plan</Label>
-                    <Input
+                    <Select
                       id="planPackage"
                       name="planPackage"
                       value={formData.planPackage}
                       onChange={handleChange}
-                    />
+                    >
+                      <option value="">Select Package Plan</option>
+                      <option value="EP">EP – Room Only</option>
+                      <option value="CP">CP – Room + Breakfast</option>
+                      <option value="MAP">MAP – Room + Breakfast + Lunch/Dinner</option>
+                      <option value="AP">AP – Room + All Meals</option>
+                      <option value="AI">AI – All Inclusive</option>
+                    </Select>
                   </div>
                   <div className="space-y-2">
                     <Label htmlFor="timeIn">Check-in Time</Label>
@@ -2108,8 +1793,8 @@ const EditBookingForm = () => {
                       </div>
                     </div>
                   )}
-                  {/* Room Rates */}
-                  {selectedRooms.length > 0 && (
+                  {/* Room Rates - Disabled for Checked Out bookings */}
+                  {selectedRooms.length > 0 && formData.status !== 'Checked Out' && (
                     <div className="space-y-4 col-span-full">
                       <h3 className="text-lg font-medium text-gray-700">Room Rates (Per Night)</h3>
                       <div className="grid gap-4">
@@ -2233,8 +1918,561 @@ const EditBookingForm = () => {
                 </div>
               </section>
 
-              {/* Payment Info Section */}
+              {/* Room Service Orders Section - Read-only for Checked Out bookings */}
               <section className="space-y-4">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 rounded-full" style={{backgroundColor: 'hsl(45, 100%, 85%)'}}>
+                    <FaConciergeBell className="text-lg" style={{color: 'hsl(45, 43%, 58%)'}} />
+                  </div>
+                  <h2 className="text-xl font-semibold" style={{color: 'hsl(45, 100%, 20%)'}}>
+                    Room Service, Restaurant & Laundry Orders {formData.status === 'Checked Out' && '(Read Only)'}
+                  </h2>
+                </div>
+                
+                {/* Room Service Orders */}
+                <RoomServiceOrders
+                  serviceCharges={roomServiceOrders}
+                  editingOrder={editingOrder}
+                  editItems={editItems}
+                  onEditOrder={(order) => {
+                    setEditingOrder({ ...order, type: 'service' });
+                    setEditItems([...order.items]);
+                  }}
+                  onSaveOrder={async (e) => {
+                    e?.preventDefault?.();
+                    try {
+                      const orderId = editingOrder._id || editingOrder.id;
+                      if (!orderId) {
+                        showToast.error('Order ID not found');
+                        return;
+                      }
+                      
+                      if (editItems.length === 0) {
+                        await axios.patch(`/api/room-service/${orderId}/status`, {
+                          status: 'cancelled'
+                        });
+                        showToast.success('Order cancelled');
+                      } else {
+                        const subtotal = editItems.reduce((sum, item) => {
+                          const unitPrice = item.unitPrice || item.price || 0;
+                          return sum + (item.quantity * unitPrice);
+                        }, 0);
+                        const totalAmount = subtotal;
+                        
+                        await axios.put(`/api/room-service/${orderId}`, {
+                          items: editItems,
+                          subtotal,
+                          totalAmount
+                        });
+                        showToast.success('Order updated successfully');
+                      }
+                      
+                      await fetchRoomServiceOrders();
+                      setEditingOrder(null);
+                      setEditItems([]);
+                    } catch (err) {
+                      console.error('Failed to update order:', err);
+                      showToast.error('Failed to update order');
+                    }
+                  }}
+                  onCancelEdit={() => {
+                    setEditingOrder(null);
+                    setEditItems([]);
+                  }}
+                  onUpdateItemQuantity={(index, quantity) => {
+                    const newItems = [...editItems];
+                    newItems[index].quantity = Math.max(0, quantity);
+                    const unitPrice = newItems[index].unitPrice || newItems[index].price || 0;
+                    const calculatedTotal = newItems[index].quantity * unitPrice;
+                    newItems[index].totalPrice = calculatedTotal;
+                    newItems[index].total = calculatedTotal;
+                    setEditItems(newItems);
+                  }}
+                  onRemoveItem={(itemIndex) => {
+                    const newItems = editItems.filter((_, index) => index !== itemIndex);
+                    setEditItems(newItems);
+                  }}
+                  onToggleNC={async (orderId, type, itemIndex) => {
+                    try {
+                      const order = roomServiceOrders.find(o => o._id === orderId);
+                      
+                      if (itemIndex !== undefined) {
+                        // Toggle item-level NC
+                        const newItems = [...order.items];
+                        const currentNC = newItems[itemIndex].nonChargeable || newItems[itemIndex].isFree || newItems[itemIndex].nc || false;
+                        const newNC = !currentNC;
+                        
+                        // Update all possible NC properties
+                        newItems[itemIndex].nonChargeable = newNC;
+                        newItems[itemIndex].isFree = newNC;
+                        newItems[itemIndex].nc = newNC;
+                        
+                        // Recalculate order total excluding NC items
+                        const newTotalAmount = newItems.reduce((sum, item) => {
+                          const isNC = item.nonChargeable || item.isFree || item.nc;
+                          if (isNC) return sum;
+                          const unitPrice = item.unitPrice || item.price || 0;
+                          return sum + (item.quantity * unitPrice);
+                        }, 0);
+                        
+                        // Optimistic update
+                        setRoomServiceOrders(prev => 
+                          prev.map(o => 
+                            o._id === orderId 
+                              ? { ...o, items: newItems, totalAmount: newTotalAmount }
+                              : o
+                          )
+                        );
+                        
+                        await axios.patch(`/api/room-service/${orderId}`, {
+                          items: newItems,
+                          totalAmount: newTotalAmount
+                        });
+                      } else {
+                        // Toggle order-level NC
+                        const newNCStatus = !order.nonChargeable;
+                        
+                        setRoomServiceOrders(prev => 
+                          prev.map(o => 
+                            o._id === orderId 
+                              ? { ...o, nonChargeable: newNCStatus }
+                              : o
+                          )
+                        );
+                        
+                        await axios.patch(`/api/room-service/${orderId}`, {
+                          nonChargeable: newNCStatus
+                        });
+                      }
+                      
+                      showToast.success('NC status updated');
+                    } catch (err) {
+                      await fetchRoomServiceOrders();
+                      showToast.error('Failed to update NC status');
+                    }
+                  }}
+                />
+
+                {/* Restaurant Orders */}
+                <RestaurantOrders
+                  restaurantCharges={restaurantOrders}
+                  editingOrder={editingOrder}
+                  editItems={editItems}
+                  onEditOrder={(order) => {
+                    setEditingOrder({ ...order, type: 'restaurant' });
+                    setEditItems([...order.items]);
+                  }}
+                  onSaveOrder={async (e) => {
+                    e?.preventDefault?.();
+                    try {
+                      const orderId = editingOrder._id || editingOrder.id;
+                      if (!orderId) {
+                        showToast.error('Order ID not found');
+                        return;
+                      }
+                      
+                      if (editItems.length === 0) {
+                        await axios.patch(`/api/restaurant-orders/${orderId}/status`, {
+                          status: 'cancelled'
+                        });
+                        showToast.success('Order cancelled');
+                      } else {
+                        const subtotal = editItems.reduce((sum, item) => {
+                          const unitPrice = item.unitPrice || item.price || 0;
+                          return sum + (item.quantity * unitPrice);
+                        }, 0);
+                        const totalAmount = subtotal;
+                        
+                        await axios.patch(`/api/restaurant-orders/${orderId}`, {
+                          items: editItems,
+                          amount: totalAmount
+                        });
+                        showToast.success('Order updated successfully');
+                      }
+                      
+                      await fetchRoomServiceOrders();
+                      setEditingOrder(null);
+                      setEditItems([]);
+                    } catch (err) {
+                      console.error('Failed to update order:', err);
+                      showToast.error('Failed to update order');
+                    }
+                  }}
+                  onCancelEdit={() => {
+                    setEditingOrder(null);
+                    setEditItems([]);
+                  }}
+                  onUpdateItemQuantity={(index, quantity) => {
+                    const newItems = [...editItems];
+                    newItems[index].quantity = Math.max(0, quantity);
+                    const unitPrice = newItems[index].unitPrice || newItems[index].price || 0;
+                    const calculatedTotal = newItems[index].quantity * unitPrice;
+                    newItems[index].totalPrice = calculatedTotal;
+                    newItems[index].total = calculatedTotal;
+                    setEditItems(newItems);
+                  }}
+                  onRemoveOrder={async (orderId, type) => {
+                    if (!confirm('Are you sure you want to remove this order?')) return;
+                    try {
+                      if (type === 'service') {
+                        await axios.delete(`/api/room-service/orders/${orderId}`);
+                      } else {
+                        await axios.patch(`/api/restaurant-orders/${orderId}/status`, {
+                          status: 'cancelled'
+                        });
+                      }
+                      await fetchRoomServiceOrders();
+                      showToast.success('Order removed successfully');
+                    } catch (err) {
+                      console.error('Failed to remove order:', err);
+                      showToast.error('Failed to remove order');
+                    }
+                  }}
+                  onRemoveItem={(itemIndex) => {
+                    const newItems = editItems.filter((_, index) => index !== itemIndex);
+                    setEditItems(newItems);
+                  }}
+                  onToggleNC={async (orderId, type, itemIndex) => {
+                    try {
+                      const order = restaurantOrders.find(o => o._id === orderId);
+                      
+                      if (itemIndex !== undefined) {
+                        // Toggle item-level NC
+                        const newItems = [...order.items];
+                        const currentNC = newItems[itemIndex].nonChargeable || newItems[itemIndex].isFree || newItems[itemIndex].nc || false;
+                        const newNC = !currentNC;
+                        
+                        // Update all possible NC properties
+                        newItems[itemIndex].nonChargeable = newNC;
+                        newItems[itemIndex].isFree = newNC;
+                        newItems[itemIndex].nc = newNC;
+                        
+                        // Recalculate order total excluding NC items
+                        const newAmount = newItems.reduce((sum, item) => {
+                          const isNC = item.nonChargeable || item.isFree || item.nc;
+                          if (isNC) return sum;
+                          const unitPrice = item.unitPrice || item.price || 0;
+                          return sum + (item.quantity * unitPrice);
+                        }, 0);
+                        
+                        // Optimistic update
+                        setRestaurantOrders(prev => 
+                          prev.map(o => 
+                            o._id === orderId 
+                              ? { ...o, items: newItems, amount: newAmount }
+                              : o
+                          )
+                        );
+                        
+                        await axios.patch(`/api/restaurant-orders/${orderId}`, {
+                          items: newItems,
+                          amount: newAmount
+                        });
+                      } else {
+                        // Toggle order-level NC
+                        const newNCStatus = !order.nonChargeable;
+                        
+                        setRestaurantOrders(prev => 
+                          prev.map(o => 
+                            o._id === orderId 
+                              ? { ...o, nonChargeable: newNCStatus }
+                              : o
+                          )
+                        );
+                        
+                        await axios.patch(`/api/restaurant-orders/${orderId}`, {
+                          nonChargeable: newNCStatus
+                        });
+                      }
+                      
+                      showToast.success('NC status updated');
+                    } catch (err) {
+                      await fetchRoomServiceOrders();
+                      showToast.error('Failed to update NC status');
+                    }
+                  }}
+                />
+                
+                {/* Laundry Orders */}
+                <div className="mt-6">
+                  <h3 className="text-lg font-semibold mb-4">Laundry Orders</h3>
+                  {laundryOrders.length > 0 ? (
+                    <div className="space-y-4">
+                      {laundryOrders.map((order, index) => (
+                        <div key={order._id || index} className="border rounded-lg p-4 bg-purple-50">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+                            {/* Order Header */}
+                            <div>
+                              <h4 className="font-medium text-purple-800 text-lg mb-2">
+                                Laundry Order #{index + 1}
+                              </h4>
+                              <div className="space-y-1 text-sm">
+                                <p className="text-purple-600">
+                                  <span className="font-medium">Guest:</span> {order.requestedByName || editBooking.name}
+                                </p>
+                                <p className="text-purple-600">
+                                  <span className="font-medium">Room:</span> {order.roomNumber}
+                                </p>
+                                <p className="text-purple-600">
+                                  <span className="font-medium">GRC No:</span> {order.grcNo}
+                                </p>
+                                <p className="text-purple-600">
+                                  <span className="font-medium">Service:</span> 
+                                  <span className="font-medium">{order.serviceType === 'vendor' ? 'External Vendor' : 'In-House'}</span>
+                                </p>
+                                {order.vendorId && (
+                                  <p className="text-purple-600">
+                                    <span className="font-medium">Vendor:</span> {order.vendorId.vendorName || 'External Vendor'}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                            
+                            {/* Order Status & Dates */}
+                            <div>
+                              <div className="flex justify-between items-start mb-3">
+                                <div>
+                                  <p className="text-sm text-purple-600 mb-2">
+                                    <span className="font-medium">Status:</span>
+                                  </p>
+                                  <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                    order.laundryStatus === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                    order.laundryStatus === 'picked_up' ? 'bg-blue-100 text-blue-700' :
+                                    order.laundryStatus === 'ready' ? 'bg-green-100 text-green-700' :
+                                    order.laundryStatus === 'delivered' ? 'bg-gray-100 text-gray-700' :
+                                    order.laundryStatus === 'cancelled' ? 'bg-red-100 text-red-700' :
+                                    'bg-orange-100 text-orange-700'
+                                  }`}>
+                                    {order.laundryStatus?.toUpperCase()}
+                                  </span>
+                                </div>
+                                <div className="text-right">
+                                  <p className="text-lg font-bold text-purple-800">
+                                    ₹{order.items?.filter(item => !item.nonChargeable && item.status !== 'lost').reduce((sum, item) => sum + (item.calculatedAmount || 0), 0)?.toFixed(2) || '0.00'}
+                                  </p>
+                                  <p className="text-xs text-purple-600">Chargeable Amount</p>
+                                </div>
+                              </div>
+                              
+                              {/* Important Dates */}
+                              <div className="space-y-1 text-sm">
+                                <p className="text-purple-600">
+                                  <span className="font-medium">Created:</span> {new Date(order.createdAt).toLocaleDateString()} at {new Date(order.createdAt).toLocaleTimeString()}
+                                </p>
+                                {order.pickupDate && (
+                                  <p className="text-purple-600">
+                                    <span className="font-medium">Pickup:</span> {new Date(order.pickupDate).toLocaleDateString()}
+                                  </p>
+                                )}
+                                {order.deliveryDate && (
+                                  <p className="text-purple-600">
+                                    <span className="font-medium">Delivery:</span> {new Date(order.deliveryDate).toLocaleDateString()}
+                                  </p>
+                                )}
+                                {order.expectedDelivery && (
+                                  <p className="text-purple-600">
+                                    <span className="font-medium">Expected:</span> {new Date(order.expectedDelivery).toLocaleDateString()}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+                          </div>
+                          
+                          {/* Items Details */}
+                          {order.items && order.items.length > 0 && (
+                            <div className="mt-4 border-t border-purple-200 pt-4">
+                              <h5 className="font-medium text-purple-700 mb-3 flex items-center justify-between">
+                                <span>Items ({order.items.length})</span>
+                                <span className="text-sm font-normal">
+                                  Total Qty: {order.items.reduce((sum, item) => sum + (item.quantity || 0), 0)}
+                                </span>
+                              </h5>
+                              <div className="grid gap-2">
+                                {order.items.map((item, itemIndex) => (
+                                  <div key={itemIndex} className="flex justify-between items-center text-sm bg-white p-3 rounded border">
+                                    <div className="flex-1">
+                                      <div className="flex items-center gap-2">
+                                        <span className={`font-medium ${item.status === 'lost' || item.status === 'cancelled' ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+                                          {item.itemName}
+                                        </span>
+                                        <span className="text-gray-500">×{item.quantity}</span>
+                                        {item.category && (
+                                          <span className="text-xs bg-gray-100 text-gray-600 px-2 py-0.5 rounded">
+                                            {item.category}
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div className="flex items-center gap-2 mt-1">
+                                        <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                          item.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
+                                          item.status === 'picked_up' ? 'bg-blue-100 text-blue-700' :
+                                          item.status === 'ready' ? 'bg-green-100 text-green-700' :
+                                          item.status === 'delivered' ? 'bg-gray-100 text-gray-700' :
+                                          item.status === 'lost' ? 'bg-orange-100 text-orange-700' :
+                                          'bg-red-100 text-red-700'
+                                        }`}>
+                                          {item.status?.toUpperCase()}
+                                        </span>
+                                        {item.nonChargeable && (
+                                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-green-100 text-green-700">
+                                            NON-CHARGEABLE
+                                          </span>
+                                        )}
+                                        {item.urgentService && (
+                                          <span className="px-2 py-0.5 rounded text-xs font-medium bg-red-100 text-red-700">
+                                            URGENT
+                                          </span>
+                                        )}
+                                      </div>
+                                      {item.notes && (
+                                        <p className="text-xs text-gray-600 mt-1 italic">
+                                          Note: {item.notes}
+                                        </p>
+                                      )}
+                                    </div>
+                                    <div className="text-right ml-4">
+                                      <div className="font-medium">
+                                        {item.nonChargeable ? (
+                                          <span className="text-green-600">NC</span>
+                                        ) : item.status === 'lost' ? (
+                                          <span className="text-orange-600">LOST</span>
+                                        ) : (
+                                          <span className="text-gray-800">₹{(item.calculatedAmount || 0).toFixed(2)}</span>
+                                        )}
+                                      </div>
+                                      {!item.nonChargeable && item.status !== 'lost' && item.price && (
+                                        <div className="text-xs text-gray-500">
+                                          ₹{item.price} × {item.quantity}
+                                        </div>
+                                      )}
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+                              
+                              {/* Order Summary */}
+                              <div className="mt-3 pt-3 border-t border-purple-200">
+                                <div className="flex justify-between text-sm">
+                                  <div className="space-y-1">
+                                    <p className="text-purple-600">
+                                      <span className="font-medium">Total Items:</span> {order.items.length}
+                                    </p>
+                                    <p className="text-purple-600">
+                                      <span className="font-medium">Chargeable Items:</span> {order.items.filter(item => !item.nonChargeable && item.status !== 'lost').length}
+                                    </p>
+                                    {order.items.some(item => item.nonChargeable) && (
+                                      <p className="text-green-600">
+                                        <span className="font-medium">Non-Chargeable:</span> {order.items.filter(item => item.nonChargeable).length}
+                                      </p>
+                                    )}
+                                    {order.items.some(item => item.status === 'lost') && (
+                                      <p className="text-orange-600">
+                                        <span className="font-medium">Lost Items:</span> {order.items.filter(item => item.status === 'lost').length}
+                                      </p>
+                                    )}
+                                  </div>
+                                  <div className="text-right">
+                                    <p className="text-purple-600 text-sm">
+                                      <span className="font-medium">Subtotal:</span> ₹{order.items.reduce((sum, item) => sum + (item.calculatedAmount || 0), 0).toFixed(2)}
+                                    </p>
+                                    <p className="text-purple-600 text-sm">
+                                      <span className="font-medium">Final Total:</span> ₹{order.items.filter(item => !item.nonChargeable && item.status !== 'lost').reduce((sum, item) => sum + (item.calculatedAmount || 0), 0).toFixed(2)}
+                                    </p>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                          
+                          {/* Special Instructions or Notes */}
+                          {order.specialInstructions && (
+                            <div className="mt-4 p-3 bg-blue-50 rounded border border-blue-200">
+                              <p className="text-sm">
+                                <span className="font-medium text-blue-800">Special Instructions:</span>
+                                <span className="text-blue-700 ml-2">{order.specialInstructions}</span>
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8">
+                      <div className="text-gray-400 mb-2">
+                        <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                        </svg>
+                      </div>
+                      <p className="text-gray-500 text-lg font-medium">No laundry orders found</p>
+                      <p className="text-gray-400 text-sm">No laundry orders have been created for this booking yet.</p>
+                    </div>
+                  )}
+                </div>
+                
+                <div className="flex justify-center gap-4">
+                  {formData.status !== 'Checked Out' && (
+                    <>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setIsNavigating(true);
+                          navigate('/room-service/create', {
+                            state: { 
+                              preSelectedBooking: editBooking
+                            }
+                          });
+                        }}
+                        className="px-6 py-3 rounded-lg font-medium text-white transition-colors"
+                        style={{backgroundColor: 'hsl(45, 43%, 58%)'}}
+                      >
+                        + Create New Room Service Order
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setIsNavigating(true);
+                          navigate('/restaurant/create-order', {
+                            state: { 
+                              preSelectedBooking: editBooking,
+                              isDineIn: true,
+                              returnToEdit: `/edit-booking/${editBooking._id}`,
+                              returnState: { editBooking }
+                            }
+                          });
+                        }}
+                        className="px-6 py-3 rounded-lg font-medium text-white transition-colors"
+                        style={{backgroundColor: 'hsl(45, 43%, 58%)'}}
+                      >
+                        + Create New Restaurant Order
+                      </Button>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          setIsNavigating(true);
+                          navigate('/laundry/orders/create', {
+                            state: { 
+                              preSelectedBooking: editBooking
+                            }
+                          });
+                        }}
+                        className="px-6 py-3 rounded-lg font-medium text-white transition-colors"
+                        style={{backgroundColor: 'hsl(45, 43%, 58%)'}}
+                      >
+                        + Create New Laundry Order
+                      </Button>
+                    </>
+                  )}
+                  {formData.status === 'Checked Out' && (
+                    <div className="text-center py-4">
+                      <p className="text-gray-600">Cannot create new orders for checked-out bookings</p>
+                    </div>
+                  )}
+                </div>
+              </section>
+
+              {/* Payment Info Section - Read-only for Checked Out bookings */}
+              {formData.status !== 'Checked Out' && (
+                <section className="space-y-4">
                 <div className="flex items-center space-x-3">
                   <div className="p-2 rounded-full" style={{backgroundColor: 'hsl(45, 100%, 85%)'}}>
                     <FaCreditCard className="text-lg" style={{color: 'hsl(45, 43%, 58%)'}} />
@@ -2308,10 +2546,80 @@ const EditBookingForm = () => {
                             
                             return sum + ((formData.extraBedCharge || 0) * Math.max(0, extraBedDays));
                           }, 0);
-                          const subtotal = roomRate + extraBedTotal;
-                          const cgstAmount = subtotal * (Number(formData.cgstRate || 0) / 100);
-                          const sgstAmount = subtotal * (Number(formData.sgstRate || 0) / 100);
-                          const totalWithTax = subtotal + cgstAmount + sgstAmount;
+                          // Calculate room service and restaurant charges (exclude cancelled orders, include order-level NC but exclude item-level NC)
+                          const activeRoomServiceOrders = roomServiceOrders.filter(order => 
+                            order.status !== 'cancelled' && order.status !== 'canceled'
+                          );
+                          const activeRestaurantOrders = restaurantOrders.filter(order => 
+                            order.status !== 'cancelled' && order.status !== 'canceled'
+                          );
+                          
+                          const roomServiceTotal = activeRoomServiceOrders.reduce((sum, order) => {
+                            // If entire order is NC, exclude it
+                            if (order.nonChargeable) return sum;
+                            // Calculate total excluding NC items
+                            const orderTotal = order.items.reduce((itemSum, item) => {
+                              const isNC = item.nonChargeable || item.isFree || item.nc;
+                              if (isNC) return itemSum;
+                              const unitPrice = item.unitPrice || item.price || 0;
+                              return itemSum + (item.quantity * unitPrice);
+                            }, 0);
+                            return sum + orderTotal;
+                          }, 0);
+                          const restaurantTotal = activeRestaurantOrders.reduce((sum, order) => {
+                            // If entire order is NC, exclude it
+                            if (order.nonChargeable) return sum;
+                            // Calculate total excluding NC items
+                            const orderTotal = order.items.reduce((itemSum, item) => {
+                              const isNC = item.nonChargeable || item.isFree || item.nc;
+                              if (isNC) return itemSum;
+                              const unitPrice = item.unitPrice || item.price || 0;
+                              return itemSum + (item.quantity * unitPrice);
+                            }, 0);
+                            return sum + orderTotal;
+                          }, 0);
+                          
+                          // Apply discount only to room cost (room rate + extra beds)
+                          const roomSubtotal = roomRate + extraBedTotal;
+                          const discountAmount = roomSubtotal * (Number(formData.discountPercent || 0) / 100);
+                          const discountedRoomSubtotal = roomSubtotal - discountAmount;
+                          
+                          // Calculate laundry charges (exclude cancelled orders)
+                          const activeLaundryOrders = laundryOrders.filter(order => 
+                            order.laundryStatus !== 'cancelled' && order.laundryStatus !== 'canceled'
+                          );
+                          const laundryTotal = activeLaundryOrders.reduce((sum, order) => {
+                            return sum + (order.items?.filter(item => !item.nonChargeable && item.status !== 'lost').reduce((itemSum, item) => itemSum + (item.calculatedAmount || 0), 0) || 0);
+                          }, 0);
+                          
+                          const subtotal = discountedRoomSubtotal + roomServiceTotal + restaurantTotal + laundryTotal;
+                          
+                          // If non-chargeable, all amounts are 0
+                          let cgstAmount, sgstAmount, totalWithTax;
+                          if (formData.nonChargeable) {
+                            cgstAmount = 0;
+                            sgstAmount = 0;
+                            totalWithTax = 0;
+                          } else {
+                            cgstAmount = subtotal * (Number(formData.cgstRate || 0) / 100);
+                            sgstAmount = subtotal * (Number(formData.sgstRate || 0) / 100);
+                            totalWithTax = subtotal + cgstAmount + sgstAmount;
+                          }
+                          
+                          // If non-chargeable, show zero amounts
+                          if (formData.nonChargeable) {
+                            return (
+                              <>
+                                <div className="flex justify-between text-green-600 font-medium">
+                                  <span>Non-Chargeable Booking:</span>
+                                  <span>₹0.00</span>
+                                </div>
+                                <div className="text-xs text-green-600 mt-1">
+                                  This booking has been marked as non-chargeable by authorized personnel.
+                                </div>
+                              </>
+                            );
+                          }
                           
                           return (
                             <>
@@ -2325,9 +2633,44 @@ const EditBookingForm = () => {
                                   <span>₹{extraBedTotal.toFixed(2)}</span>
                                 </div>
                               )}
+                              {roomServiceTotal > 0 && (
+                                <div className="flex justify-between">
+                                  <span>Room Service ({activeRoomServiceOrders.length} orders):</span>
+                                  <span>₹{roomServiceTotal.toFixed(2)}</span>
+                                </div>
+                              )}
+                              {restaurantTotal > 0 && (
+                                <div className="flex justify-between">
+                                  <span>Restaurant ({activeRestaurantOrders.length} orders):</span>
+                                  <span>₹{restaurantTotal.toFixed(2)}</span>
+                                </div>
+                              )}
+                              {laundryTotal > 0 && (
+                                <div className="flex justify-between">
+                                  <span>Laundry ({activeLaundryOrders.length} orders):</span>
+                                  <span>₹{laundryTotal.toFixed(2)}</span>
+                                </div>
+                              )}
                               <hr className="my-1" />
                               <div className="flex justify-between font-medium">
-                                <span>Subtotal:</span>
+                                <span>Room Subtotal:</span>
+                                <span>₹{roomSubtotal.toFixed(2)}</span>
+                              </div>
+                              {discountAmount > 0 && (
+                                <div className="flex justify-between text-red-600">
+                                  <span>Discount ({Number(formData.discountPercent || 0)}%) - Room Only:</span>
+                                  <span>-₹{discountAmount.toFixed(2)}</span>
+                                </div>
+                              )}
+                              {discountAmount > 0 && (
+                                <div className="flex justify-between">
+                                  <span>Room After Discount:</span>
+                                  <span>₹{discountedRoomSubtotal.toFixed(2)}</span>
+                                </div>
+                              )}
+                              <hr className="my-1" />
+                              <div className="flex justify-between font-medium">
+                                <span>Total Subtotal:</span>
                                 <span>₹{subtotal.toFixed(2)}</span>
                               </div>
                               <div className="flex justify-between">
@@ -2364,6 +2707,18 @@ const EditBookingForm = () => {
                       <option value="Bank Transfer">Bank Transfer</option>
                     </Select>
                   </div>
+                  {formData.paymentMode && formData.paymentMode !== 'Cash' && (
+                    <div className="space-y-2">
+                      <Label htmlFor="transactionId">Transaction ID</Label>
+                      <Input
+                        id="transactionId"
+                        name="transactionId"
+                        value={formData.transactionId || ''}
+                        onChange={handleChange}
+                        placeholder="Enter transaction ID"
+                      />
+                    </div>
+                  )}
                   <div className="space-y-2">
                     <Label htmlFor="paymentStatus">Payment Status</Label>
                     <Select
@@ -2372,8 +2727,8 @@ const EditBookingForm = () => {
                       value={formData.paymentStatus}
                       onChange={handleChange}
                     >
-                      <option value="Pending">Pending</option>
-                      <option value="Paid">Paid</option>
+                      <option value={false}>Pending</option>
+                      <option value={true}>Paid</option>
                       <option value="Failed">Failed</option>
                       <option value="Partial">Partial</option>
                     </Select>
@@ -2388,7 +2743,287 @@ const EditBookingForm = () => {
                       max="100"
                       value={formData.discountPercent}
                       onChange={handleChange}
+                      disabled={formData.nonChargeable}
                     />
+                  </div>
+
+                  {formData.discountPercent > 0 && !formData.nonChargeable && (
+                    <div className="space-y-2 col-span-full">
+                      <Label htmlFor="discountNotes">
+                        Discount Notes <span className="text-red-500">*</span>
+                      </Label>
+                      <textarea
+                        id="discountNotes"
+                        name="discountNotes"
+                        value={formData.discountNotes || ''}
+                        onChange={handleChange}
+                        className="flex w-full rounded-md bg-transparent px-3 py-2 text-sm shadow-sm focus-visible:outline-none focus-visible:ring-1 disabled:cursor-not-allowed disabled:opacity-50"
+                        style={{ border: '1px solid hsl(45, 100%, 85%)', color: 'hsl(45, 100%, 20%)' }}
+                        rows="3"
+                        placeholder="Please provide reason for discount (mandatory when discount is applied)"
+                        required
+                      />
+                      <p className="text-xs text-red-600">Note: Discount notes are mandatory when discount is applied</p>
+                    </div>
+                  )}
+
+
+                  {/* Multiple Advance Payments Section */}
+                  <div className="space-y-4 col-span-full">
+                    <div className="flex justify-between items-center border-t pt-4">
+                      <h3 className="text-lg font-medium text-gray-700">Advance Payments</h3>
+                      <Button
+                        type="button"
+                        onClick={() => {
+                          const newPayment = {
+                            amount: 0,
+                            paymentMode: '',
+                            paymentDate: new Date().toISOString().split('T')[0],
+                            reference: '',
+                            notes: ''
+                          };
+                          setFormData(prev => ({
+                            ...prev,
+                            advancePayments: [...(prev.advancePayments || []), newPayment]
+                          }));
+                        }}
+                        className="px-3 py-1 text-sm"
+                      >
+                        + Add Payment
+                      </Button>
+                    </div>
+                    
+                    {formData.advancePayments && formData.advancePayments.length > 0 && (
+                      <div className="space-y-3">
+                        {formData.advancePayments.map((payment, index) => (
+                          <div key={index} className="border rounded-lg p-4 bg-gray-50">
+                            <div className="flex justify-between items-center mb-3">
+                              <h4 className="font-medium text-gray-800">Payment #{index + 1}</h4>
+                              <Button
+                                type="button"
+                                onClick={() => {
+                                  setFormData(prev => ({
+                                    ...prev,
+                                    advancePayments: prev.advancePayments.filter((_, i) => i !== index)
+                                  }));
+                                }}
+                                className="px-2 py-1 text-xs bg-red-500 hover:bg-red-600"
+                              >
+                                Remove
+                              </Button>
+                            </div>
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <Label>Amount (₹)</Label>
+                                <Input
+                                  type="number"
+                                  min="0"
+                                  value={payment.amount || 0}
+                                  onChange={(e) => {
+                                    const newPayments = [...formData.advancePayments];
+                                    newPayments[index].amount = Number(e.target.value);
+                                    setFormData(prev => ({ ...prev, advancePayments: newPayments }));
+                                  }}
+                                  placeholder="Enter amount"
+                                />
+                              </div>
+                              <div className="space-y-2">
+                                <Label>Payment Mode</Label>
+                                <Select
+                                  value={payment.paymentMode || ''}
+                                  onChange={(e) => {
+                                    const newPayments = [...formData.advancePayments];
+                                    newPayments[index].paymentMode = e.target.value;
+                                    // Auto-set payment date to today when payment mode is selected
+                                    if (e.target.value && !newPayments[index].paymentDate) {
+                                      newPayments[index].paymentDate = new Date().toISOString().split('T')[0];
+                                    }
+                                    setFormData(prev => ({ ...prev, advancePayments: newPayments }));
+                                  }}
+                                >
+                                  <option value="">Select Mode</option>
+                                  <option value="Cash">Cash</option>
+                                  <option value="Card">Card</option>
+                                  <option value="UPI">UPI</option>
+                                  <option value="Bank Transfer">Bank Transfer</option>
+                                  <option value="Online">Online</option>
+                                </Select>
+                              </div>
+                              {payment.paymentMode && payment.paymentMode !== 'Cash' && (
+                                <div className="space-y-2 md:col-span-2">
+                                  <Label>Transaction ID</Label>
+                                  <Input
+                                    value={payment.reference || ''}
+                                    onChange={(e) => {
+                                      const newPayments = [...formData.advancePayments];
+                                      newPayments[index].reference = e.target.value;
+                                      setFormData(prev => ({ ...prev, advancePayments: newPayments }));
+                                    }}
+                                    placeholder="Enter transaction ID"
+                                  />
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    
+                    {/* Payment Summary */}
+                    {formData.rate > 0 && (
+                      <div className="bg-blue-50 p-4 rounded-lg">
+                        <h4 className="font-medium text-blue-800 mb-2">Payment Summary</h4>
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <span className="text-blue-600">Total Amount:</span>
+                            <div className="font-semibold">₹{(() => {
+                              if (formData.nonChargeable) return '0.00';
+                              
+                              // Use same calculation as Rate Breakdown
+                              const roomRate = selectedRooms.reduce((sum, room) => {
+                                const rate = room.customPrice !== undefined && room.customPrice !== '' && room.customPrice !== null
+                                  ? Number(room.customPrice) 
+                                  : (room.price || 0);
+                                return sum + rate;
+                              }, 0) * (formData.days || 1);
+                              
+                              const extraBedTotal = selectedRooms.reduce((sum, room) => {
+                                if (!room.extraBed) return sum;
+                                const startDate = new Date(room.extraBedStartDate || new Date().toISOString().split('T')[0]);
+                                const endDate = new Date(formData.checkOutDate);
+                                if (startDate >= endDate) return sum;
+                                const timeDiff = endDate.getTime() - startDate.getTime();
+                                const extraBedDays = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+                                return sum + ((formData.extraBedCharge || 0) * Math.max(0, extraBedDays));
+                              }, 0);
+                              
+                              const activeRoomServiceOrders = roomServiceOrders.filter(order => 
+                                order.status !== 'cancelled' && order.status !== 'canceled'
+                              );
+                              const activeRestaurantOrders = restaurantOrders.filter(order => 
+                                order.status !== 'cancelled' && order.status !== 'canceled'
+                              );
+                              
+                              const roomServiceTotal = activeRoomServiceOrders.reduce((sum, order) => {
+                                if (order.nonChargeable) return sum;
+                                const orderTotal = order.items.reduce((itemSum, item) => {
+                                  const isNC = item.nonChargeable || item.isFree || item.nc;
+                                  if (isNC) return itemSum;
+                                  const unitPrice = item.unitPrice || item.price || 0;
+                                  return itemSum + (item.quantity * unitPrice);
+                                }, 0);
+                                return sum + orderTotal;
+                              }, 0);
+                              
+                              const restaurantTotal = activeRestaurantOrders.reduce((sum, order) => {
+                                if (order.nonChargeable) return sum;
+                                const orderTotal = order.items.reduce((itemSum, item) => {
+                                  const isNC = item.nonChargeable || item.isFree || item.nc;
+                                  if (isNC) return itemSum;
+                                  const unitPrice = item.unitPrice || item.price || 0;
+                                  return itemSum + (item.quantity * unitPrice);
+                                }, 0);
+                                return sum + orderTotal;
+                              }, 0);
+                              
+                              const roomSubtotal = roomRate + extraBedTotal;
+                              const discountAmount = roomSubtotal * (Number(formData.discountPercent || 0) / 100);
+                              const discountedRoomSubtotal = roomSubtotal - discountAmount;
+                              const subtotal = discountedRoomSubtotal + roomServiceTotal + restaurantTotal;
+                              
+                              const cgstAmount = subtotal * (Number(formData.cgstRate || 0) / 100);
+                              const sgstAmount = subtotal * (Number(formData.sgstRate || 0) / 100);
+                              const totalWithTax = subtotal + cgstAmount + sgstAmount;
+                              
+                              return totalWithTax.toFixed(2);
+                            })()}</div>
+                          </div>
+                          <div>
+                            <span className="text-green-600">Total Advance Received:</span>
+                            <div className="font-semibold text-green-700">₹{(() => {
+                              const totalAdvance = (formData.advancePayments || []).reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+                              return totalAdvance.toFixed(2);
+                            })()}</div>
+                          </div>
+                          <div>
+                            <span className="text-orange-600">Balance Due:</span>
+                            <div className="font-semibold text-orange-700">₹{(() => {
+                              if (formData.nonChargeable) return '0.00';
+                              
+                              // Use same calculation as Rate Breakdown
+                              const roomRate = selectedRooms.reduce((sum, room) => {
+                                const rate = room.customPrice !== undefined && room.customPrice !== '' && room.customPrice !== null
+                                  ? Number(room.customPrice) 
+                                  : (room.price || 0);
+                                return sum + rate;
+                              }, 0) * (formData.days || 1);
+                              
+                              const extraBedTotal = selectedRooms.reduce((sum, room) => {
+                                if (!room.extraBed) return sum;
+                                const startDate = new Date(room.extraBedStartDate || new Date().toISOString().split('T')[0]);
+                                const endDate = new Date(formData.checkOutDate);
+                                if (startDate >= endDate) return sum;
+                                const timeDiff = endDate.getTime() - startDate.getTime();
+                                const extraBedDays = Math.ceil(timeDiff / (1000 * 60 * 60 * 24));
+                                return sum + ((formData.extraBedCharge || 0) * Math.max(0, extraBedDays));
+                              }, 0);
+                              
+                              const activeRoomServiceOrders = roomServiceOrders.filter(order => 
+                                order.status !== 'cancelled' && order.status !== 'canceled'
+                              );
+                              const activeRestaurantOrders = restaurantOrders.filter(order => 
+                                order.status !== 'cancelled' && order.status !== 'canceled'
+                              );
+                              
+                              const roomServiceTotal = activeRoomServiceOrders.reduce((sum, order) => {
+                                if (order.nonChargeable) return sum;
+                                const orderTotal = order.items.reduce((itemSum, item) => {
+                                  const isNC = item.nonChargeable || item.isFree || item.nc;
+                                  if (isNC) return itemSum;
+                                  const unitPrice = item.unitPrice || item.price || 0;
+                                  return itemSum + (item.quantity * unitPrice);
+                                }, 0);
+                                return sum + orderTotal;
+                              }, 0);
+                              
+                              const restaurantTotal = activeRestaurantOrders.reduce((sum, order) => {
+                                if (order.nonChargeable) return sum;
+                                const orderTotal = order.items.reduce((itemSum, item) => {
+                                  const isNC = item.nonChargeable || item.isFree || item.nc;
+                                  if (isNC) return itemSum;
+                                  const unitPrice = item.unitPrice || item.price || 0;
+                                  return itemSum + (item.quantity * unitPrice);
+                                }, 0);
+                                return sum + orderTotal;
+                              }, 0);
+                              
+                              const roomSubtotal = roomRate + extraBedTotal;
+                              const discountAmount = roomSubtotal * (Number(formData.discountPercent || 0) / 100);
+                              const discountedRoomSubtotal = roomSubtotal - discountAmount;
+                              const subtotal = discountedRoomSubtotal + roomServiceTotal + restaurantTotal;
+                              
+                              const cgstAmount = subtotal * (Number(formData.cgstRate || 0) / 100);
+                              const sgstAmount = subtotal * (Number(formData.sgstRate || 0) / 100);
+                              const totalAmount = subtotal + cgstAmount + sgstAmount;
+                              
+                              const totalAdvance = (formData.advancePayments || []).reduce((sum, payment) => sum + (Number(payment.amount) || 0), 0);
+                              const balance = totalAmount - totalAdvance;
+                              return Math.max(0, balance).toFixed(2);
+                            })()}</div>
+                          </div>
+                        </div>
+                        {formData.advancePayments && formData.advancePayments.length > 0 && (
+                          <div className="mt-3 text-xs text-gray-600">
+                            <span className="font-medium">Payments: </span>
+                            {formData.advancePayments.map((payment, index) => (
+                              <span key={index}>
+                                ₹{(Number(payment.amount) || 0).toFixed(2)} ({payment.paymentMode}){index < formData.advancePayments.length - 1 ? ', ' : ''}
+                              </span>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
                   </div>
                   <div className="space-y-2 col-span-full">
                     <Label htmlFor="billingInstruction">Billing Instruction</Label>
@@ -2404,11 +3039,15 @@ const EditBookingForm = () => {
                   </div>
                 </div>
               </section>
+              )}
 
               <div className="mt-8 flex flex-col sm:flex-row justify-center gap-4">
                 <Button
                   type="button"
-                  onClick={() => navigate('/booking')}
+                  onClick={() => {
+                    setIsNavigating(true);
+                    navigate('/booking');
+                  }}
                   variant="outline"
                   className="px-8 py-3 font-semibold rounded-lg shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 w-full sm:w-auto"
                 >
@@ -2435,9 +3074,10 @@ const EditBookingForm = () => {
                 </Button>
                 <Button
                   type="submit"
+                  disabled={loading || isNavigating || editingOrder}
                   className="px-8 py-3 font-semibold rounded-lg shadow-md transition-colors focus:outline-none focus:ring-2 focus:ring-offset-2 w-full sm:w-auto"
                 >
-                  Update Booking
+                  {loading ? 'Updating...' : 'Update Booking'}
                 </Button>
               </div>
             </form>
@@ -2535,9 +3175,10 @@ const EditBookingForm = () => {
               <Button
                 type="button"
                 onClick={handleAmendStay}
+                disabled={amendingStay}
                 className="bg-orange-600 hover:bg-orange-700"
               >
-                Amend Stay
+                {amendingStay ? 'Amending...' : 'Amend Stay'}
               </Button>
             </div>
           </div>

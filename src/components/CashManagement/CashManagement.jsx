@@ -4,6 +4,34 @@ import { IndianRupee, CreditCard, Smartphone, TrendingUp, TrendingDown, Clock, A
 import { toast } from 'react-hot-toast';
 import DashboardLoader from '../DashboardLoader';
 
+// Add CSS animations
+const styles = `
+  @keyframes fadeInUp {
+    from { opacity: 0; transform: translateY(20px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes slideInLeft {
+    from { opacity: 0; transform: translateX(-20px); }
+    to { opacity: 1; transform: translateX(0); }
+  }
+  @keyframes scaleIn {
+    from { opacity: 0; transform: scale(0.95); }
+    to { opacity: 1; transform: scale(1); }
+  }
+  .animate-fadeInUp { opacity: 0; animation: fadeInUp 0.5s ease-out forwards; }
+  .animate-slideInLeft { opacity: 0; animation: slideInLeft 0.4s ease-out forwards; }
+  .animate-scaleIn { opacity: 0; animation: scaleIn 0.3s ease-out forwards; }
+  .animate-delay-100 { animation-delay: 0.1s; }
+  .animate-delay-200 { animation-delay: 0.2s; }
+  .animate-delay-300 { animation-delay: 0.3s; }
+`;
+
+if (typeof document !== 'undefined') {
+  const styleSheet = document.createElement('style');
+  styleSheet.textContent = styles;
+  document.head.appendChild(styleSheet);
+}
+
 const CashManagement = () => {
   const { axios } = useAppContext();
   const [cashData, setCashData] = useState({
@@ -29,8 +57,6 @@ const CashManagement = () => {
     keepPercentage: 30
   });
   const [formLoading, setFormLoading] = useState(false);
-  const [showReport, setShowReport] = useState(false);
-  const [showAnalytics, setShowAnalytics] = useState(false);
   const [dateFilter, setDateFilter] = useState('today');
   const [startDate, setStartDate] = useState('');
   const [endDate, setEndDate] = useState('');
@@ -53,14 +79,12 @@ const CashManagement = () => {
       
       const response = await axios.get(url);
       const data = response.data;
-      console.log('🔍 Cash Management - Raw API Data:', data);
       
       // Process transactions data
       const transactions = data.transactions || [];
       let totalReceived = 0;
       let totalSent = 0;
       let officeToReception = 0;
-      let sourceBreakdown = [];
       
       // Calculate totals from transactions
       transactions.forEach(transaction => {
@@ -89,7 +113,7 @@ const CashManagement = () => {
         }
       });
       
-      sourceBreakdown = Object.entries(sourceMap).map(([source, total]) => ({
+      const sourceBreakdown = Object.entries(sourceMap).map(([source, total]) => ({
         _id: source,
         total
       }));
@@ -106,7 +130,6 @@ const CashManagement = () => {
         sourceBreakdown
       };
       
-      console.log('💰 Final Cash Data:', finalData);
       setCashData(finalData);
     } catch (error) {
       console.error('Cash Management API Error:', error);
@@ -168,7 +191,6 @@ const CashManagement = () => {
         }
       });
       
-      // Check if response is actually Excel or CSV
       const contentType = response.headers['content-type'] || '';
       let mimeType, fileExtension;
       
@@ -259,9 +281,9 @@ const CashManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-yellow-50 w-full overflow-x-hidden">
+    <div className="min-h-screen bg-gradient-to-br from-amber-50 via-white to-yellow-50 w-full overflow-x-hidden" style={{opacity: filterLoading ? 0.8 : 1, transition: 'opacity 0.3s ease-in-out'}}>
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur-sm shadow-lg border-b" style={{borderColor: '#c3ad6b'}}>
+      <div className="bg-white/80 backdrop-blur-sm shadow-lg border-b animate-slideInLeft animate-delay-100" style={{borderColor: '#c3ad6b'}}>
         <div className="w-full px-4 sm:px-6 md:px-8 lg:px-12 py-4 sm:py-6 md:py-8">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 md:gap-6">
             <div className="w-full md:w-auto">
@@ -300,7 +322,7 @@ const CashManagement = () => {
 
       <div className="w-full px-4 sm:px-6 md:px-8 lg:px-12 py-4 sm:py-6 md:py-8">
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8 animate-fadeInUp animate-delay-200">
           <div className="bg-white/90 backdrop-blur-sm rounded-xl sm:rounded-2xl shadow-xl p-4 sm:p-6 lg:p-8 hover:shadow-2xl transition-all duration-300 transform hover:scale-105" style={{border: '1px solid #c3ad6b'}}>
             <div className="flex items-center justify-between">
               <div className="flex-1 min-w-0">
@@ -380,12 +402,12 @@ const CashManagement = () => {
         </div>
 
         {/* Source Breakdown Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8">
-          {['RESTAURANT', 'ROOM_BOOKING', 'BANQUET + PARTY', 'OTHER'].map((source, index) => {
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 md:gap-6 mb-6 sm:mb-8 animate-fadeInUp animate-delay-300">
+          {['RESTAURANT', 'ROOM_BOOKING', 'BANQUET + PARTY', 'OTHER'].map((source) => {
             const sourceData = (cashData.sourceBreakdown || []).find(s => s._id === source) || { total: 0 };
             
             return (
-              <div key={source} className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105" style={{border: '1px solid #c3ad6b'}}>
+              <div key={source} className="bg-white/90 backdrop-blur-sm rounded-xl shadow-lg p-4 sm:p-6 hover:shadow-xl transition-all duration-300 transform hover:scale-105 animate-scaleIn" style={{border: '1px solid #c3ad6b', animationDelay: `${500 + (['RESTAURANT', 'ROOM_BOOKING', 'BANQUET + PARTY', 'OTHER'].indexOf(source) * 50)}ms`}}>
                 <div className="flex items-center justify-between">
                   <div className="flex-1 min-w-0">
                     <p className="text-xs sm:text-sm font-semibold uppercase tracking-wide truncate" style={{color: '#5D4037'}}>
@@ -408,7 +430,7 @@ const CashManagement = () => {
         </div>
 
         {/* Recent Transactions */}
-        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-4 sm:p-6 md:p-8">
+        <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200 p-4 sm:p-6 md:p-8 animate-fadeInUp animate-delay-300">
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-4">
             <div className="flex items-center gap-3">
               <h3 className="text-lg font-bold text-gray-900">Recent Transactions</h3>
@@ -483,7 +505,7 @@ const CashManagement = () => {
                   {cashData.recentTransactions
                     .filter(transaction => sourceFilter === 'all' || transaction.source === sourceFilter)
                     .slice(0, 10).map((transaction, index) => (
-                    <tr key={index} className="border-b border-gray-100">
+                    <tr key={index} className="border-b border-gray-100 animate-fadeInUp" style={{animationDelay: `${Math.min(index * 50 + 600, 1000)}ms`}}>
                       <td className="p-3">
                         <span className="font-semibold" style={{color: (transaction.type === 'KEEP AT RECEPTION' || transaction.type === 'OFFICE TO RECEPTION') ? '#16a34a' : 'hsl(45, 43%, 58%)'}}>
                           ₹{transaction.amount?.toLocaleString()}

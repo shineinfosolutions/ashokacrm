@@ -1373,7 +1373,6 @@ import axios from "axios";
 import { useAppContext } from "../../../../context/AppContext";
 import MenuSelector from "../Menu/MenuSelector";
 import DashboardLoader from "../../../DashboardLoader";
-import useWebSocket from '../../../../hooks/useWebSocket';
 import {
   FaUser,
   FaArrowLeft,
@@ -1447,8 +1446,8 @@ const AddBooking = () => {
   const [submitSuccess, setSubmitSuccess] = useState(false); // For button animation
   const [submitError, setSubmitError] = useState(false); // For button shake
 
-  // WebSocket connection
-  const { sendMessage } = useWebSocket();
+  // WebSocket removed
+  const sendMessage = () => {};
 
   const [form, setForm] = useState({
     name: "",
@@ -1483,6 +1482,7 @@ const AddBooking = () => {
     menuItems: "",
     isConfirmed: false,
     categorizedMenu: {},
+    discount: "",
     decorationCharge: "",
     musicCharge: "",
     hasDecoration: false,
@@ -1500,6 +1500,7 @@ const AddBooking = () => {
     if (form.pax && (form.useCustomPrice ? form.customPlatePrice : (form.ratePlan && form.foodType))) {
       const paxNum = parseInt(form.pax) || 0;
       const gstPercent = parseFloat(form.gst) || 0;
+      const discountPercent = parseFloat(form.discount) || 0;
       
       let basePrice;
       if (form.useCustomPrice) {
@@ -1510,8 +1511,10 @@ const AddBooking = () => {
         basePrice = rateInfo.basePrice;
       }
       
-      const gstAmount = (basePrice * gstPercent) / 100;
-      const rateWithGST = basePrice + gstAmount;
+      const discountAmount = (basePrice * discountPercent) / 100;
+      const discountedPrice = basePrice - discountAmount;
+      const gstAmount = (discountedPrice * gstPercent) / 100;
+      const rateWithGST = discountedPrice + gstAmount;
       const foodTotal = rateWithGST * paxNum;
       
       // Add decoration and music charges
@@ -1525,7 +1528,7 @@ const AddBooking = () => {
         ratePerPax: rateWithGST.toFixed(2),
       }));
     }
-  }, [form.pax, form.ratePlan, form.foodType, form.gst, form.decorationCharge, form.musicCharge, form.hasDecoration, form.hasMusic, form.useCustomPrice, form.customPlatePrice]);
+  }, [form.pax, form.ratePlan, form.foodType, form.gst, form.discount, form.decorationCharge, form.musicCharge, form.hasDecoration, form.hasMusic, form.useCustomPrice, form.customPlatePrice]);
 
   // Balance calculation with advance array
   useEffect(() => {
@@ -1643,6 +1646,12 @@ const AddBooking = () => {
       val = val.toUpperCase();
     }
     
+    // Discount validation - limit to 10%
+    if (name === "discount") {
+      if (parseFloat(val) > 10) val = "10";
+      if (parseFloat(val) < 0) val = "0";
+    }
+    
     // If bookingStatus is changed, set statusChangedAt
     if (name === "bookingStatus" && value !== form.bookingStatus) {
       // Add status history tracking and update booleans
@@ -1676,7 +1685,6 @@ const AddBooking = () => {
 
   const handleSaveMenu = async (selectedItems, categorizedMenu) => {
     try {
-      // Direct mapping - MenuSelector already sends correct format
       setForm((prev) => ({
         ...prev,
         menuItems: selectedItems.join(", "),
@@ -1738,7 +1746,7 @@ const AddBooking = () => {
             changedAt: new Date().toISOString(),
           },
         ],
-        menuItems: undefined,
+        menuItems: form.menuItems || "",
         categorizedMenu: form.categorizedMenu || {},
         ...(form.statusChangedAt
           ? { statusChangedAt: form.statusChangedAt }
@@ -1749,7 +1757,7 @@ const AddBooking = () => {
       Object.assign(payload, statusBooleans);
 
       const response = await axios.post(
-        "https://ashoka-api.shineinfosolutions.in/api/banquet-bookings/create",
+        `${import.meta.env.VITE_API_URL}/api/banquet-bookings/create`,
         payload
       );
 
@@ -2380,6 +2388,28 @@ const AddBooking = () => {
                   )}
                 </div>
 
+                {/* Discount */}
+                <div className="space-y-1">
+                  <label className="block text-sm font-medium text-gray-700">
+                    Discount (%)
+                  </label>
+                  <div className="relative">
+                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400">%</span>
+                    <input
+                      type="number"
+                      name="discount"
+                      className="pl-10 w-full rounded-lg border border-gray-300 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 py-2 px-3"
+                      onChange={handleChange}
+                      value={form.discount}
+                      placeholder="0-10%"
+                      min="0"
+                      max="10"
+                      step="0.1"
+                    />
+                  </div>
+                  <p className="text-xs text-gray-500">Maximum 10% discount allowed</p>
+                </div>
+
                 {/* GST (optional) */}
                 <div className="space-y-1">
                   <label className="block text-sm font-medium text-gray-700">
@@ -2645,9 +2675,12 @@ const AddBooking = () => {
                           base = rateInfo.basePrice;
                         }
                         
+                        const discountPercent = parseFloat(form.discount) || 0;
+                        const discountAmount = (base * discountPercent) / 100;
+                        const discountedPrice = base - discountAmount;
                         const gstPercent = parseFloat(form.gst) || 0;
-                        const gstAmount = (base * gstPercent) / 100;
-                        const rateWithGST = base + gstAmount;
+                        const gstAmount = (discountedPrice * gstPercent) / 100;
+                        const rateWithGST = discountedPrice + gstAmount;
                         const pax = parseInt(form.pax) || 0;
                         const foodTotal = (rateWithGST * pax);
                         const decorationCharge = form.hasDecoration ? (parseFloat(form.decorationCharge) || 0) : 0;
@@ -2670,9 +2703,14 @@ const AddBooking = () => {
                               </div>
                             )}
                             <div className="text-xs text-gray-500 mt-1">
-                              Rate per pax: ₹{base} + ₹
-                              {gstAmount.toFixed(2)} (GST) = ₹
-                              {rateWithGST.toFixed(2)}
+                              Rate per pax: ₹{base}
+                              {discountAmount > 0 && (
+                                <span className="text-green-600"> - ₹{discountAmount.toFixed(2)} ({discountPercent}%)</span>
+                              )}
+                              {gstAmount > 0 && (
+                                <span> + ₹{gstAmount.toFixed(2)} (GST)</span>
+                              )}
+                              <span> = ₹{rateWithGST.toFixed(2)}</span>
                             </div>
                           </>
                         );
@@ -2739,6 +2777,7 @@ const AddBooking = () => {
                     readOnly
                     placeholder="No menu items selected yet"
                   />
+
                   <button
                     type="button"
                     onClick={() => setShowMenuSelector(true)}
