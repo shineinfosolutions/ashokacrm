@@ -13,14 +13,25 @@ const ChefDashboard = () => {
   const [activeTab, setActiveTab] = useState('active');
   const [selectedDate, setSelectedDate] = useState('');
   const [showCalendar, setShowCalendar] = useState(false);
-  const [isConnected] = useState(false); // Placeholder for socket connection
+  const [isConnected] = useState(false);
+  const [orderTypeFilter, setOrderTypeFilter] = useState('all');
 
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/restaurant-orders/all', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      
+      // Fetch both restaurant and in-room orders
+      const [restaurantRes, inRoomRes] = await Promise.all([
+        axios.get('/api/restaurant-orders/all', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('/api/inroom-orders/all', { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      
+      // Combine and mark order types
+      const restaurantOrders = (restaurantRes.data || []).map(o => ({ ...o, orderType: 'restaurant' }));
+      const inRoomOrders = (inRoomRes.data || []).map(o => ({ ...o, orderType: 'inroom' }));
+      const allOrders = [...restaurantOrders, ...inRoomOrders].sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
       
       const menuResponse = await axios.get('/api/menu-items', {
         headers: { Authorization: `Bearer ${token}` }
@@ -29,7 +40,7 @@ const ChefDashboard = () => {
       
       const newItemStates = {};
       
-      const enhancedOrders = response.data.map(order => {
+      const enhancedOrders = allOrders.map(order => {
         const enhancedItems = order.items?.map((item, index) => {
           const menuItem = menuItems.find(mi => 
             mi._id === item.itemId || 
@@ -49,7 +60,8 @@ const ChefDashboard = () => {
           return {
             name: item.itemName || item.name || menuItem?.name || 'Unknown Item',
             quantity: item.quantity || 1,
-            price: price,
+            price: item.price || menuItem?.Price || menuItem?.price || 0,
+            isFree: item.isFree || false,
             prepTime: prepTime,
             status: item.status || 'pending'
           };
@@ -68,8 +80,12 @@ const ChefDashboard = () => {
         order.status === 'served' || order.status === 'completed' || order.status === 'cancelled'
       );
       
-      setOrders(activeOrders);
-      setAllHistoryOrders(allHistory);
+      // Apply order type filter
+      const filteredActive = orderTypeFilter === 'all' ? activeOrders : activeOrders.filter(o => o.orderType === orderTypeFilter);
+      const filteredHistory = orderTypeFilter === 'all' ? allHistory : allHistory.filter(o => o.orderType === orderTypeFilter);
+      
+      setOrders(filteredActive);
+      setAllHistoryOrders(filteredHistory);
       setItemStates(newItemStates);
     } catch (error) {
       console.error('Error fetching orders:', error);
@@ -80,7 +96,7 @@ const ChefDashboard = () => {
 
   useEffect(() => {
     fetchOrders();
-  }, []);
+  }, [orderTypeFilter]);
   
   useEffect(() => {
     if (selectedDate && selectedDate.trim() !== '') {
@@ -95,10 +111,14 @@ const ChefDashboard = () => {
     }
   }, [selectedDate, allHistoryOrders]);
 
-  const updateOrderStatus = async (orderId, newStatus) => {
+  const updateOrderStatus = async (orderId, newStatus, orderType) => {
     try {
       const token = localStorage.getItem('token');
-      await axios.patch(`/api/restaurant-orders/${orderId}/status`, {
+      const endpoint = orderType === 'inroom' 
+        ? `/api/inroom-orders/${orderId}/status`
+        : `/api/restaurant-orders/${orderId}/status`;
+      
+      await axios.patch(endpoint, {
         status: newStatus
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -171,6 +191,17 @@ const ChefDashboard = () => {
               History ({historyOrders.length})
             </button>
           </div>
+          <div>
+            <select
+              value={orderTypeFilter}
+              onChange={(e) => setOrderTypeFilter(e.target.value)}
+              className="px-4 py-2 border border-gray-300 rounded-lg text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+            >
+              <option value="all">All Orders</option>
+              <option value="restaurant">Restaurant</option>
+              <option value="inroom">In-Room Dining</option>
+            </select>
+          </div>
         </div>
       </motion.div>
 
@@ -190,6 +221,13 @@ const ChefDashboard = () => {
                 <div className="text-xs text-gray-400">
                   {new Date(order.createdAt).toLocaleString()}
                 </div>
+                <span className={`inline-block mt-1 px-2 py-1 text-xs font-medium rounded ${
+                  order.orderType === 'inroom' 
+                    ? 'bg-purple-100 text-purple-800' 
+                    : 'bg-blue-100 text-blue-800'
+                }`}>
+                  {order.orderType === 'inroom' ? '🏨 In-Room' : '🍽️ Restaurant'}
+                </span>
               </div>
             </div>
 
@@ -198,7 +236,7 @@ const ChefDashboard = () => {
                 {order.tableNo || 'T'}
               </div>
               <div>
-                <div className="text-xs text-gray-500">Table</div>
+                <div className="text-xs text-gray-500">{order.orderType === 'inroom' ? 'Room' : 'Table'}</div>
                 <div className="text-sm font-medium">{order.tableNo || 'N/A'}</div>
               </div>
             </div>
@@ -209,7 +247,11 @@ const ChefDashboard = () => {
                 {order.items?.map((item, index) => (
                   <div key={index} className="flex justify-between text-sm">
                     <span>{item.name} x{item.quantity}</span>
-                    <span>₹{item.price}</span>
+                    {item.isFree ? (
+                      <span className="text-green-600 font-bold">FREE</span>
+                    ) : (
+                      <span>₹{item.price}</span>
+                    )}
                   </div>
                 ))}
               </div>
@@ -222,12 +264,28 @@ const ChefDashboard = () => {
               </div>
             </div>
 
-            {order.status !== 'completed' && order.status !== 'cancelled' && (
+            {order.status === 'pending' && (
               <button
-                onClick={() => updateOrderStatus(order._id, 'completed')}
+                onClick={() => updateOrderStatus(order._id, 'preparing', order.orderType)}
+                className="w-full bg-blue-500 text-white py-2 rounded font-medium hover:bg-blue-600"
+              >
+                Start Preparing
+              </button>
+            )}
+            {order.status === 'preparing' && (
+              <button
+                onClick={() => updateOrderStatus(order._id, 'ready', order.orderType)}
+                className="w-full bg-yellow-500 text-white py-2 rounded font-medium hover:bg-yellow-600"
+              >
+                Mark Ready
+              </button>
+            )}
+            {order.status === 'ready' && (
+              <button
+                onClick={() => updateOrderStatus(order._id, 'served', order.orderType)}
                 className="w-full bg-green-500 text-white py-2 rounded font-medium hover:bg-green-600"
               >
-                Mark Complete
+                Mark Served
               </button>
             )}
           </motion.div>

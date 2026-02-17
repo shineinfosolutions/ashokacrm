@@ -16,10 +16,11 @@ const AddItemsModal = ({ isOpen, onClose, selectedOrder, onItemAdded }) => {
   const fetchItems = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/items/all', {
+      const response = await axios.get('/api/menu-items', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setItems(response.data);
+      const itemsData = response.data.menuItems || response.data.data || response.data || [];
+      setItems(itemsData);
     } catch (error) {
       console.error('Error fetching items:', error);
     }
@@ -93,7 +94,7 @@ const AddItemsModal = ({ isOpen, onClose, selectedOrder, onItemAdded }) => {
                 <option value="">Choose an item...</option>
                 {items.map(item => (
                   <option key={item._id} value={item._id}>
-                    {item.name} - ₹{item.Price}
+                    {item.name} - ₹{item.Price || item.price || 0}
                   </option>
                 ))}
               </select>

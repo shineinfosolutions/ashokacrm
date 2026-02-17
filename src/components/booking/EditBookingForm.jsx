@@ -327,8 +327,8 @@ const EditBookingForm = () => {
         roomGuestDetails: editBooking.roomGuestDetails || [],
         extraBedCharge: editBooking.extraBedCharge || 500,
         rate: editBooking.taxableAmount || editBooking.rate || 0,
-        cgstRate: editBooking.cgstRate !== undefined ? (editBooking.cgstRate * 100) : 0,
-        sgstRate: editBooking.sgstRate !== undefined ? (editBooking.sgstRate * 100) : 0,
+        cgstRate: editBooking.cgstRate !== undefined ? (editBooking.cgstRate * 100) : 6,
+        sgstRate: editBooking.sgstRate !== undefined ? (editBooking.sgstRate * 100) : 6,
         taxIncluded: editBooking.taxIncluded || false,
         serviceCharge: editBooking.serviceCharge || false,
         arrivedFrom: editBooking.arrivedFrom || '',
@@ -550,7 +550,7 @@ const EditBookingForm = () => {
       });
       
       // Fetch restaurant orders by booking ID and booking number
-      const restaurantResponse = await axios.get('/api/restaurant-orders/all', {
+      const restaurantResponse = await axios.get('/api/inroom-orders/all', {
         headers: { 'Authorization': `Bearer ${token}` },
         params: { 
           bookingId: editBooking._id,
@@ -2072,7 +2072,7 @@ const EditBookingForm = () => {
                       }
                       
                       if (editItems.length === 0) {
-                        await axios.patch(`/api/restaurant-orders/${orderId}/status`, {
+                        await axios.patch(`/api/inroom-orders/${orderId}/status`, {
                           status: 'cancelled'
                         });
                         showToast.success('Order cancelled');
@@ -2083,7 +2083,7 @@ const EditBookingForm = () => {
                         }, 0);
                         const totalAmount = subtotal;
                         
-                        await axios.patch(`/api/restaurant-orders/${orderId}`, {
+                        await axios.patch(`/api/inroom-orders/${orderId}`, {
                           items: editItems,
                           amount: totalAmount
                         });
@@ -2117,7 +2117,7 @@ const EditBookingForm = () => {
                       if (type === 'service') {
                         await axios.delete(`/api/room-service/orders/${orderId}`);
                       } else {
-                        await axios.patch(`/api/restaurant-orders/${orderId}/status`, {
+                        await axios.patch(`/api/inroom-orders/${orderId}/status`, {
                           status: 'cancelled'
                         });
                       }
@@ -2164,7 +2164,7 @@ const EditBookingForm = () => {
                           )
                         );
                         
-                        await axios.patch(`/api/restaurant-orders/${orderId}`, {
+                        await axios.patch(`/api/inroom-orders/${orderId}`, {
                           items: newItems,
                           amount: newAmount
                         });
@@ -2180,7 +2180,7 @@ const EditBookingForm = () => {
                           )
                         );
                         
-                        await axios.patch(`/api/restaurant-orders/${orderId}`, {
+                        await axios.patch(`/api/inroom-orders/${orderId}`, {
                           nonChargeable: newNCStatus
                         });
                       }

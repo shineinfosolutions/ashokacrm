@@ -230,7 +230,6 @@ const Sidebar = () => {
           { label: "Create Order", path: "/inroomdinein/create-order", icon: ShoppingCart },
           { label: "Live Orders", path: "/inroomdinein/live-orders", icon: ChefHat },
           { label: "All Orders", path: "/inroomdinein/all-orders", icon: ClipboardList },
-          { label: "KOT", path: "/inroomdinein/kot", icon: ListChecks },
         ],
       });
     }

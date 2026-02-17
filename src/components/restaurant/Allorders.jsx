@@ -11,6 +11,7 @@ import LiveOrderNotifications from './LiveOrderNotifications';
 import AddItemsModal from './AddItemsModal';
 import TransferTableModal from './TransferTableModal';
 import { motion, AnimatePresence } from 'framer-motion';
+import { Wallet, CreditCard, Smartphone, Banknote, FileText, ArrowLeft } from 'lucide-react';
 
 const AllBookings = ({ setActiveTab }) => {
   const { axios } = useAppContext();
@@ -20,22 +21,18 @@ const AllBookings = ({ setActiveTab }) => {
   // Real-time order updates
   const { isConnected } = useOrderSocket({
     onNewOrder: (data) => {
-      console.log('📱 New order received in AllOrders:', data);
-      fetchBookings(); // Refresh the orders list
+      fetchBookings();
     },
     onOrderStatusUpdate: (data) => {
-      console.log('📱 Order status update in AllOrders:', data);
-      fetchBookings(); // Refresh the orders list
+      fetchBookings();
     },
     onNewKOT: (data) => {
-      console.log('📱 New KOT received in AllOrders:', data);
-      fetchBookings(); // Refresh the orders list
+      fetchBookings();
     },
     onKOTStatusUpdate: (data) => {
-      console.log('📱 KOT status update in AllOrders:', data);
-      fetchBookings(); // Refresh the orders list
+      fetchBookings();
     },
-    showNotifications: false // We use the LiveOrderNotifications component
+    showNotifications: false
   });
   const [bookings, setBookings] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -119,11 +116,9 @@ const AllBookings = ({ setActiveTab }) => {
         return;
       }
       
-      const response = await axios.get('/api/restaurant-orders/all', {
+      const response = await axios.get('/api/restaurant-orders/all?orderType=restaurant', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      console.log('Fetched bookings:', response.data);
-      console.log('Bookings count:', response.data?.length || 0);
       
       if (Array.isArray(response.data)) {
         setBookings(response.data);
@@ -144,7 +139,7 @@ const AllBookings = ({ setActiveTab }) => {
   const fetchTables = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/restaurant/tables', {
+      const response = await axios.get('/api/restaurant/tables/all', {
         headers: { Authorization: `Bearer ${token}` }
       });
       const tablesData = Array.isArray(response.data) ? response.data : (response.data.tables || []);
@@ -157,10 +152,11 @@ const AllBookings = ({ setActiveTab }) => {
   const fetchItems = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/items/all', {
+      const response = await axios.get('/api/menu-items', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      setItems(response.data);
+      const itemsData = response.data.menuItems || response.data.data || response.data || [];
+      setItems(itemsData);
     } catch (error) {
       console.error('Error fetching items:', error);
     }
@@ -169,12 +165,10 @@ const AllBookings = ({ setActiveTab }) => {
   const fetchCoupons = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/coupons/all', {
+      const response = await axios.get('/api/menu-items', {
         headers: { Authorization: `Bearer ${token}` }
       });
-      console.log('Fetched coupons:', response.data);
       
-      // Handle different response structures
       let couponsData = [];
       if (Array.isArray(response.data)) {
         couponsData = response.data;
@@ -396,12 +390,132 @@ const AllBookings = ({ setActiveTab }) => {
     setSplitPayments(updated);
   };
 
+  const generatePOSInvoice = async (orderId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/restaurant-orders/details/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const order = response.data;
+
+      const printWindow = window.open('', '_blank');
+      const printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>POS Invoice #${order._id?.slice(-6) || 'N/A'}</title>
+          <style>
+            @page { size: 80mm auto; margin: 0; }
+            body { margin: 0; padding: 2mm; font-family: monospace; font-size: 10px; width: 80mm; }
+            .text-center { text-align: center; }
+            .mb-1 { margin-bottom: 4px; }
+            .mb-2 { margin-bottom: 8px; }
+            .border-b { border-bottom: 1px solid #000; }
+            .flex { display: flex; justify-content: space-between; }
+            .font-bold { font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="text-center mb-2">
+            <div class="font-bold" style="font-size: 12px;">ASHOKA</div>
+            <div class="mb-1">EXPERIENCE COMFORT</div>
+            <div class="mb-2">POS INVOICE</div>
+            <div class="font-bold mb-1">ASHOKA DINING</div>
+            <div class="mb-1">(A Unit Of Ashoka hospitality)</div>
+            <div class="mb-1">Add : Near Hanuman Mandir, Deoria Road</div>
+            <div class="mb-1">Kurnaghat, Gorakhpur - 273008</div>
+            <div class="mb-1">GSTIN : 09ANHPJ7242D2Z1</div>
+            <div class="mb-2">Mob : 6388491244</div>
+            <div class="border-b mb-2"></div>
+          </div>
+
+          <div class="mb-2">
+            <div class="flex mb-1">
+              <span>Invoice #: ${order._id?.slice(-6) || 'N/A'}</span>
+              <span>Table: ${order.tableNo || 'N/A'}</span>
+            </div>
+            <div class="flex mb-1">
+              <span>Date: ${new Date().toLocaleDateString('en-GB')}</span>
+              <span>Time: ${new Date().toLocaleTimeString('en-GB', { hour12: false })}</span>
+            </div>
+            <div class="mb-1">Customer: ${order.customerName || 'Guest'}</div>
+            <div class="border-b mb-2"></div>
+          </div>
+
+          <div class="mb-2">
+            <div class="flex font-bold border-b mb-1">
+              <span style="width: 50%">Item</span>
+              <span style="width: 15%; text-align: center">Qty</span>
+              <span style="width: 35%; text-align: right">Amount</span>
+            </div>
+          </div>
+
+          <div class="mb-2">
+            ${order.items?.map(item => `
+              <div class="flex mb-1">
+                <span style="width: 50%">${item.itemName || 'Unknown'}</span>
+                <span style="width: 15%; text-align: center">${item.quantity || 1}</span>
+                <span style="width: 35%; text-align: right">${item.isFree || item.nonChargeable ? 'FREE' : '₹' + ((item.price || 0) * (item.quantity || 1))}</span>
+              </div>
+            `).join('') || '<div>No items</div>'}
+            <div class="border-b mb-2"></div>
+          </div>
+
+          <div class="mb-2">
+            <div class="flex mb-1">
+              <span>Subtotal:</span>
+              <span>₹${order.subtotal || 0}</span>
+            </div>
+            <div class="flex mb-1">
+              <span>CGST (${order.cgstRate || 0}%):</span>
+              <span>₹${order.cgstAmount || 0}</span>
+            </div>
+            <div class="flex mb-1">
+              <span>SGST (${order.sgstRate || 0}%):</span>
+              <span>₹${order.sgstAmount || 0}</span>
+            </div>
+            <div class="border-b mb-2"></div>
+            <div class="flex font-bold" style="font-size: 12px;">
+              <span>Total:</span>
+              <span>₹${order.amount || 0}</span>
+            </div>
+            <div class="border-b mb-2"></div>
+          </div>
+
+          <div class="text-center mb-2">
+            <div class="mb-2">Thank you for dining with us!</div>
+            <div>Printed: ${new Date().toLocaleString('en-GB')}</div>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              window.onafterprint = function() { window.close(); };
+            };
+          </script>
+        </body>
+        </html>
+      `;
+      
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+    } catch (error) {
+      console.error('Error printing POS invoice:', error);
+      showToast.error('Failed to print POS invoice');
+    }
+  };
+
   const generateInvoice = async (orderId, invoiceType = 'tax') => {
     try {
       setLoadingInvoice(orderId);
-      const token = localStorage.getItem('token');
       
-      // Get current order data
+      if (invoiceType === 'tax') {
+        navigate(`/restaurant/tax-invoice/${orderId}`);
+        return;
+      }
+      
+      // For POS invoice, keep existing logic
+      const token = localStorage.getItem('token');
       const currentOrder = bookings.find(b => b._id === orderId);
       if (!currentOrder) {
         showToast.error('Order not found');
@@ -453,8 +567,6 @@ const AllBookings = ({ setActiveTab }) => {
       const response = await axios.get(`/api/restaurant-orders/invoice/${orderId}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
-      
-      console.log('Invoice response:', response.data);
       
       let invoiceWindow;
       // Handle different response formats
@@ -693,7 +805,7 @@ const AllBookings = ({ setActiveTab }) => {
 
 
   const canCompleteOrder = () => {
-    return userRole === 'restaurant' && userRestaurantRole === 'cashier';
+    return userRole === 'ADMIN' || (userRole === 'restaurant' && userRestaurantRole === 'cashier');
   };
 
   const updateOrderStatusWithRoleCheck = async (bookingId, newStatus) => {
@@ -747,12 +859,9 @@ const AllBookings = ({ setActiveTab }) => {
             <table className="w-full min-w-[800px]">
               <thead className="bg-secondary">
                 <tr>
-                  <th className="px-2 sm:px-4 py-3 text-left text-text font-semibold text-xs sm:text-sm">Order ID</th>
                   <th className="px-2 sm:px-4 py-3 text-left text-text font-semibold text-xs sm:text-sm">Staff</th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-text font-semibold text-xs sm:text-sm">Phone</th>
                   <th className="px-2 sm:px-4 py-3 text-left text-text font-semibold text-xs sm:text-sm">Table</th>
                   <th className="px-2 sm:px-4 py-3 text-left text-text font-semibold text-xs sm:text-sm">Items</th>
-                  <th className="px-2 sm:px-4 py-3 text-left text-text font-semibold text-xs sm:text-sm">Advance Payment</th>
                   <th className="px-2 sm:px-4 py-3 text-left text-text font-semibold text-xs sm:text-sm">Status</th>
                   <th className="px-2 sm:px-4 py-3 text-left text-text font-semibold text-xs sm:text-sm">Actions</th>
                 </tr>
@@ -766,12 +875,7 @@ const AllBookings = ({ setActiveTab }) => {
                     transition={{ duration: 0.3, delay: index * 0.05 }}
                     className={index % 2 === 0 ? 'bg-background' : 'bg-white'}
                   >
-                    <td className="px-2 sm:px-4 py-3 text-text text-xs sm:text-sm font-mono">
-                      <div className="font-semibold">{booking._id.slice(-6)}</div>
-                      <div className="text-xs text-gray-500">{booking.customerName || 'Guest'}</div>
-                    </td>
                     <td className="px-2 sm:px-4 py-3 text-text text-xs sm:text-sm">{booking.staffName || 'N/A'}</td>
-                    <td className="px-2 sm:px-4 py-3 text-text text-xs sm:text-sm">{booking.phoneNumber || 'N/A'}</td>
                     <td className="px-2 sm:px-4 py-3 text-text text-xs sm:text-sm">{booking.tableNo || 'N/A'}</td>
                     <td className="px-2 sm:px-4 py-3 text-text text-xs sm:text-sm">
                       {booking.allKotItems?.length || booking.items?.length || 0} items
@@ -781,38 +885,18 @@ const AllBookings = ({ setActiveTab }) => {
                         </span>
                       )}
                     </td>
-                    <td className="px-2 sm:px-4 py-3 text-text text-xs sm:text-sm">₹{booking.advancePayment || 0}</td>
                     <td className="px-2 sm:px-4 py-3">
                       <div className="flex flex-col gap-1">
                         <span className={`px-2 py-1 rounded text-xs ${getStatusColor(booking.status || 'pending')}`}>
                           {booking.status || 'pending'}
                         </span>
                         {getNextStatus(booking.status) && booking.status !== 'completed' && booking.status !== 'cancelled' && (
-                          getNextStatus(booking.status) === 'completed' ? (
-                            canCompleteOrder() ? (
-                              <button
-                                onClick={() => updateOrderStatusWithRoleCheck(booking._id, getNextStatus(booking.status))}
-                                className="bg-primary text-white px-2 py-1 rounded text-xs hover:bg-hover transition-colors"
-                              >
-                                → {getNextStatus(booking.status)}
-                              </button>
-                            ) : (
-                              <button
-                                disabled
-                                className="bg-gray-300 text-gray-500 px-2 py-1 rounded text-xs cursor-not-allowed"
-                                title="Only cashiers can complete orders"
-                              >
-                                → {getNextStatus(booking.status)}
-                              </button>
-                            )
-                          ) : (
-                            <button
-                              onClick={() => updateOrderStatusWithNotification(booking._id, getNextStatus(booking.status))}
-                              className="bg-primary text-white px-2 py-1 rounded text-xs hover:bg-hover transition-colors"
-                            >
-                              → {getNextStatus(booking.status)}
-                            </button>
-                          )
+                          <button
+                            onClick={() => updateOrderStatusWithNotification(booking._id, getNextStatus(booking.status))}
+                            className="bg-primary text-white px-2 py-1 rounded text-xs hover:bg-hover transition-colors"
+                          >
+                            → {getNextStatus(booking.status)}
+                          </button>
                         )}
                         {booking.status !== 'cancelled' && booking.status !== 'completed' && booking.status !== 'ready' && booking.status !== 'served' && booking.status !== 'paid' && (() => {
                           const orderTime = new Date(booking.createdAt);
@@ -848,7 +932,7 @@ const AllBookings = ({ setActiveTab }) => {
                                 Tax Invoice
                               </button>
                               <button
-                                onClick={() => generateInvoice(booking._id, 'pos')}
+                                onClick={() => generatePOSInvoice(booking._id)}
                                 disabled={loadingInvoice === booking._id}
                                 className="bg-blue-500 text-white px-2 py-1 rounded text-xs hover:bg-blue-600 whitespace-nowrap disabled:opacity-50"
                               >
@@ -972,43 +1056,49 @@ const AllBookings = ({ setActiveTab }) => {
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
             transition={{ type: "spring", duration: 0.3 }}
-            className="bg-gradient-to-br from-black to-gray-900 rounded-xl p-6 max-w-md w-full mx-4 border-2 border-yellow-500 shadow-2xl"
+            className="bg-white rounded-xl p-6 max-w-md w-full mx-4 border-2 border-[#c3ad6b] shadow-2xl"
           >
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-yellow-400">💰 Payment Options</h3>
+              <h3 className="text-2xl font-bold text-[#b39b5a] flex items-center gap-2">
+                <Wallet className="w-6 h-6" />
+                Payment Options
+              </h3>
               <button
                 onClick={() => {
                   setShowPayNowModal(false);
                   setSelectedOrderForPayment(null);
                   setPaymentType('full');
                 }}
-                className="text-yellow-400 hover:text-yellow-300 text-3xl font-bold transition-colors"
+                className="text-[#b39b5a] hover:text-[#c3ad6b] text-3xl font-bold transition-colors"
               >
                 ×
               </button>
             </div>
             
             <div className="space-y-6">
-              <div className="p-4 bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 rounded-lg border border-yellow-500/30">
-                <div className="font-bold text-yellow-400 text-lg mb-2">📋 Order Summary</div>
-                <div className="text-yellow-100 space-y-1">
+              <div className="p-4 bg-[#f7f5ef] rounded-lg border border-[#c3ad6b]/30">
+                <div className="font-bold text-[#b39b5a] text-lg mb-2 flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Order Summary
+                </div>
+                <div className="text-gray-700 space-y-1">
                   <div className="flex justify-between">
                     <span>Order ID:</span>
-                    <span className="font-mono text-yellow-300">#{selectedOrderForPayment._id?.slice(-6)}</span>
+                    <span className="font-mono text-[#b39b5a]">#{selectedOrderForPayment._id?.slice(-6)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Table:</span>
-                    <span className="font-semibold text-yellow-300">{selectedOrderForPayment.tableNo}</span>
+                    <span className="font-semibold text-[#b39b5a]">{selectedOrderForPayment.tableNo}</span>
                   </div>
-                  <div className="flex justify-between text-lg font-bold border-t border-yellow-500/30 pt-2 mt-2">
+                  <div className="flex justify-between text-lg font-bold border-t border-[#c3ad6b]/30 pt-2 mt-2">
                     <span>Total Amount:</span>
-                    <span className="text-yellow-400">₹{selectedOrderForPayment.amount || selectedOrderForPayment.advancePayment || 0}</span>
+                    <span className="text-[#b39b5a]">₹{selectedOrderForPayment.amount || selectedOrderForPayment.advancePayment || 0}</span>
                   </div>
                 </div>
               </div>
               
               <div className="space-y-4">
-                <div className="text-center font-bold text-yellow-400 text-lg">Choose Payment Method:</div>
+                <div className="text-center font-bold text-[#b39b5a] text-lg">Choose Payment Method:</div>
                 
                 <button
                   onClick={() => {
@@ -1016,10 +1106,13 @@ const AllBookings = ({ setActiveTab }) => {
                     setShowPayNowModal(false);
                     setShowFullPaymentModal(true);
                   }}
-                  className="w-full bg-gradient-to-r from-yellow-500 to-yellow-600 text-black py-4 px-6 rounded-lg hover:from-yellow-400 hover:to-yellow-500 transition-all duration-300 font-bold text-lg shadow-lg transform hover:scale-105"
+                  className="w-full bg-gradient-to-r from-[#c3ad6b] to-[#b39b5a] text-white py-4 px-6 rounded-lg hover:from-[#b39b5a] hover:to-[#c3ad6b] transition-all duration-300 font-bold text-lg shadow-lg transform hover:scale-105 flex items-center justify-center gap-2"
                 >
-                  💳 Full Payment
-                  <div className="text-sm font-medium opacity-90 mt-1">Pay ₹{selectedOrderForPayment.amount || selectedOrderForPayment.advancePayment || 0} at once</div>
+                  <CreditCard className="w-6 h-6" />
+                  <div>
+                    Full Payment
+                    <div className="text-sm font-medium opacity-90">Pay ₹{selectedOrderForPayment.amount || selectedOrderForPayment.advancePayment || 0} at once</div>
+                  </div>
                 </button>
                 
                 <button
@@ -1029,21 +1122,24 @@ const AllBookings = ({ setActiveTab }) => {
                     setShowPayNowModal(false);
                     setShowSplitPaymentModal(true);
                   }}
-                  className="w-full bg-gradient-to-r from-gray-700 to-gray-800 text-yellow-400 py-4 px-6 rounded-lg hover:from-gray-600 hover:to-gray-700 transition-all duration-300 font-bold text-lg border-2 border-yellow-500/50 shadow-lg transform hover:scale-105"
+                  className="w-full bg-white text-[#b39b5a] py-4 px-6 rounded-lg hover:bg-[#f7f5ef] transition-all duration-300 font-bold text-lg border-2 border-[#c3ad6b] shadow-lg transform hover:scale-105 flex items-center justify-center gap-2"
                 >
-                  🔄 Split Bill
-                  <div className="text-sm font-medium opacity-90 mt-1">Pay with multiple methods</div>
+                  <Wallet className="w-6 h-6" />
+                  <div>
+                    Split Bill
+                    <div className="text-sm font-medium opacity-90">Pay with multiple methods</div>
+                  </div>
                 </button>
               </div>
               
-              <div className="flex justify-center pt-4 border-t border-yellow-500/30">
+              <div className="flex justify-center pt-4 border-t border-[#c3ad6b]/30">
                 <button
                   onClick={() => {
                     setShowPayNowModal(false);
                     setSelectedOrderForPayment(null);
                     setPaymentType('full');
                   }}
-                  className="text-yellow-400 hover:text-yellow-300 font-medium transition-colors"
+                  className="text-[#b39b5a] hover:text-[#c3ad6b] font-medium transition-colors"
                 >
                   Cancel
                 </button>
@@ -1068,42 +1164,48 @@ const AllBookings = ({ setActiveTab }) => {
             animate={{ scale: 1, y: 0 }}
             exit={{ scale: 0.9, y: 20 }}
             transition={{ type: "spring", duration: 0.3 }}
-            className="bg-gradient-to-br from-black to-gray-900 rounded-xl p-6 max-w-md w-full mx-4 border-2 border-yellow-500 shadow-2xl"
+            className="bg-white rounded-xl p-6 max-w-md w-full mx-4 border-2 border-[#c3ad6b] shadow-2xl"
           >
             <div className="flex justify-between items-center mb-6">
-              <h3 className="text-2xl font-bold text-yellow-400">💳 Select Payment Method</h3>
+              <h3 className="text-2xl font-bold text-[#b39b5a] flex items-center gap-2">
+                <CreditCard className="w-6 h-6" />
+                Select Payment Method
+              </h3>
               <button
                 onClick={() => {
                   setShowFullPaymentModal(false);
                   setSelectedOrderForPayment(null);
                 }}
-                className="text-yellow-400 hover:text-yellow-300 text-3xl font-bold transition-colors"
+                className="text-[#b39b5a] hover:text-[#c3ad6b] text-3xl font-bold transition-colors"
               >
                 ×
               </button>
             </div>
             
             <div className="space-y-6">
-              <div className="p-4 bg-gradient-to-r from-yellow-500/20 to-yellow-600/20 rounded-lg border border-yellow-500/30">
-                <div className="font-bold text-yellow-400 text-lg mb-2">📋 Payment Details</div>
-                <div className="text-yellow-100 space-y-1">
+              <div className="p-4 bg-[#f7f5ef] rounded-lg border border-[#c3ad6b]/30">
+                <div className="font-bold text-[#b39b5a] text-lg mb-2 flex items-center gap-2">
+                  <FileText className="w-5 h-5" />
+                  Payment Details
+                </div>
+                <div className="text-gray-700 space-y-1">
                   <div className="flex justify-between">
                     <span>Order ID:</span>
-                    <span className="font-mono text-yellow-300">#{selectedOrderForPayment._id?.slice(-6)}</span>
+                    <span className="font-mono text-[#b39b5a]">#{selectedOrderForPayment._id?.slice(-6)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Table:</span>
-                    <span className="font-semibold text-yellow-300">{selectedOrderForPayment.tableNo}</span>
+                    <span className="font-semibold text-[#b39b5a]">{selectedOrderForPayment.tableNo}</span>
                   </div>
-                  <div className="flex justify-between text-lg font-bold border-t border-yellow-500/30 pt-2 mt-2">
+                  <div className="flex justify-between text-lg font-bold border-t border-[#c3ad6b]/30 pt-2 mt-2">
                     <span>Amount to Pay:</span>
-                    <span className="text-yellow-400">₹{selectedOrderForPayment.amount || selectedOrderForPayment.advancePayment || 0}</span>
+                    <span className="text-[#b39b5a]">₹{selectedOrderForPayment.amount || selectedOrderForPayment.advancePayment || 0}</span>
                   </div>
                 </div>
               </div>
               
               <div className="space-y-3">
-                <div className="text-center font-bold text-yellow-400 text-lg">Choose Payment Method:</div>
+                <div className="text-center font-bold text-[#b39b5a] text-lg">Choose Payment Method:</div>
                 
                 <button
                   onClick={async () => {
@@ -1157,9 +1259,10 @@ const AllBookings = ({ setActiveTab }) => {
                       showToast.error('Failed to process cash payment');
                     }
                   }}
-                  className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 px-4 rounded-lg hover:from-green-500 hover:to-green-600 transition-all duration-300 font-medium shadow-lg transform hover:scale-105"
+                  className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 px-4 rounded-lg hover:from-green-500 hover:to-green-600 transition-all duration-300 font-medium shadow-lg transform hover:scale-105 flex items-center justify-center gap-2"
                 >
-                  💵 Cash Payment
+                  <Banknote className="w-5 h-5" />
+                  Cash Payment
                 </button>
                 
                 <button
@@ -1212,9 +1315,10 @@ const AllBookings = ({ setActiveTab }) => {
                       showToast.error('Failed to process card payment');
                     }
                   }}
-                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-4 rounded-lg hover:from-blue-500 hover:to-blue-600 transition-all duration-300 font-medium shadow-lg transform hover:scale-105"
+                  className="w-full bg-gradient-to-r from-blue-600 to-blue-700 text-white py-3 px-4 rounded-lg hover:from-blue-500 hover:to-blue-600 transition-all duration-300 font-medium shadow-lg transform hover:scale-105 flex items-center justify-center gap-2"
                 >
-                  💳 Card Payment
+                  <CreditCard className="w-5 h-5" />
+                  Card Payment
                 </button>
                 
                 <button
@@ -1267,21 +1371,23 @@ const AllBookings = ({ setActiveTab }) => {
                       showToast.error('Failed to process UPI payment');
                     }
                   }}
-                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3 px-4 rounded-lg hover:from-purple-500 hover:to-purple-600 transition-all duration-300 font-medium shadow-lg transform hover:scale-105"
+                  className="w-full bg-gradient-to-r from-purple-600 to-purple-700 text-white py-3 px-4 rounded-lg hover:from-purple-500 hover:to-purple-600 transition-all duration-300 font-medium shadow-lg transform hover:scale-105 flex items-center justify-center gap-2"
                 >
-                  📱 UPI Payment
+                  <Smartphone className="w-5 h-5" />
+                  UPI Payment
                 </button>
               </div>
               
-              <div className="flex justify-center pt-4 border-t border-yellow-500/30">
+              <div className="flex justify-center pt-4 border-t border-[#c3ad6b]/30">
                 <button
                   onClick={() => {
                     setShowFullPaymentModal(false);
                     setShowPayNowModal(true);
                   }}
-                  className="text-yellow-400 hover:text-yellow-300 font-medium transition-colors"
+                  className="text-[#b39b5a] hover:text-[#c3ad6b] font-medium transition-colors flex items-center gap-1"
                 >
-                  ← Back to Payment Options
+                  <ArrowLeft className="w-4 h-4" />
+                  Back to Payment Options
                 </button>
               </div>
             </div>
@@ -1557,7 +1663,6 @@ const AllBookings = ({ setActiveTab }) => {
             setRestaurantBillData(null);
           }}
           onBillUpdate={(billData) => {
-            console.log('Restaurant bill updated:', billData);
           }}
         />
       )}

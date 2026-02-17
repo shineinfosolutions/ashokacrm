@@ -45,6 +45,7 @@ import LiveOrders from './components/inroomdinein/LiveOrders';
 import AllOrders from './components/inroomdinein/AllOrders';
 import EditOrder from './components/inroomdinein/EditOrder';
 import KOT from './components/inroomdinein/KOT';
+import InRoomKOT from './components/inroomdinein/InRoomKOT';
 import GSTSettings from './components/inroomdinein/GSTSettings';
 import RestaurantInvoice from './components/inroomdinein/RestaurantInvoice';
 
@@ -56,6 +57,7 @@ import RestaurantReservations from './components/restaurant/Resturantreservation
 import RestaurantTables from './components/restaurant/Table';
 import RestaurantKOT from './components/restaurant/KOT';
 import RestaurantChefDashboard from './components/restaurant/ChefDashboard';
+import RestaurantTaxInvoice from './components/restaurant/RestaurantTaxInvoice';
 import SharedHotelInvoice from './components/booking/SharedHotelInvoice';
 import { RoomServiceInvoice, LaundryInvoice } from './components/invoices';
 import NightAuditReport from './components/reports/NightAuditReport';
@@ -103,6 +105,7 @@ function App() {
           <Routes>
             {/* Public Routes */}
             <Route path="/shared-invoice/:id" element={<SharedHotelInvoice />} />
+            <Route path="/inroom-dining/kot/:orderId" element={<InRoomKOT />} />
             <Route path="/login" element={<Login />} />
             
             {/* Protected Routes */}
@@ -395,11 +398,7 @@ function App() {
                 <EditOrder />
               </PrivateRoute>
             } />
-            <Route path="inroomdinein/kot" element={
-              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
-                <KOT />
-              </PrivateRoute>
-            } />
+
             <Route path="inroomdinein/gst-settings" element={
               <PrivateRoute requiredRoles={['ADMIN', 'GM']}>
                 <GSTSettings />
@@ -410,9 +409,9 @@ function App() {
                 <RestaurantInvoice />
               </PrivateRoute>
             } />
-            <Route path="restaurant-invoice/:bookingId" element={
-              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK']}>
-                <RestaurantInvoice />
+            <Route path="restaurant/tax-invoice/:orderId" element={
+              <PrivateRoute requiredRoles={['ADMIN', 'GM', 'FRONT DESK', 'STAFF']}>
+                <RestaurantTaxInvoice />
               </PrivateRoute>
             } />
             <Route path="room-service-invoice/:bookingId" element={
@@ -448,3 +447,4 @@ function App() {
 }
 
 export default App
+

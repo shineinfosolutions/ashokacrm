@@ -293,7 +293,7 @@ export const useOrderManagement = (location) => {
         isLoyalty: false
       };
       
-      const orderResponse = await axios.post('/api/restaurant-orders/create', finalOrderData, {
+      const orderResponse = await axios.post('/api/inroom-orders/create', finalOrderData, {
         headers: { 
           Authorization: `Bearer ${token}`,
           'Content-Type': 'application/json'

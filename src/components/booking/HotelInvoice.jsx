@@ -20,7 +20,7 @@ export default function Invoice() {
   const [isEditing, setIsEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [generatingPdf, setGeneratingPdf] = useState(false);
-  const [gstRates, setGstRates] = useState({ cgstRate: 2.5, sgstRate: 2.5 });
+  const [gstRates, setGstRates] = useState({ cgstRate: 6, sgstRate: 6 });
   const [showPaxDetails, setShowPaxDetails] = useState(false);
   const [laundryOrders, setLaundryOrders] = useState([]);
   const [activeInvoice, setActiveInvoice] = useState('hotel');
@@ -149,7 +149,7 @@ export default function Invoice() {
         setLoadingServices(true);
         try {
           const token = localStorage.getItem('token');
-          const response = await axios.get('/api/restaurant-orders/all', {
+          const response = await axios.get('/api/inroom-orders/all', {
             headers: { Authorization: `Bearer ${token}` }
           });
           const bookingOrders = response.data.filter(order => 
@@ -157,7 +157,7 @@ export default function Invoice() {
           );
           setRestaurantOrders(bookingOrders);
         } catch (error) {
-          console.error('Error fetching restaurant orders:', error);
+          console.error('Error fetching in-room dining orders:', error);
         } finally {
           setLoadingServices(false);
         }
@@ -235,7 +235,7 @@ export default function Invoice() {
   // Fetch invoice data from checkout API or use restaurant order data
   const fetchInvoiceData = async (checkoutId) => {
     // Load GST rates from booking data first, then fallback to saved rates
-    let currentGstRates = { cgstRate: 0, sgstRate: 0 }; // Default to 0
+    let currentGstRates = { cgstRate: 6, sgstRate: 6 }; // Default to 6% each (12% total GST for hotels)
     if (bookingData?.cgstRate !== undefined && bookingData?.sgstRate !== undefined) {
       currentGstRates = {
         cgstRate: bookingData.cgstRate * 100, // Convert from decimal to percentage
@@ -243,7 +243,7 @@ export default function Invoice() {
       };
     } else {
       const savedRates = localStorage.getItem('defaultGstRates');
-      currentGstRates = savedRates ? JSON.parse(savedRates) : { cgstRate: 0, sgstRate: 0 };
+      currentGstRates = savedRates ? JSON.parse(savedRates) : { cgstRate: 6, sgstRate: 6 };
     }
     setGstRates(currentGstRates);
     try {

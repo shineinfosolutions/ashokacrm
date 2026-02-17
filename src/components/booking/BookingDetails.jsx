@@ -249,7 +249,7 @@ const BookingDetails = () => {
 
   const fetchRestaurantCharges = async (bookingId, token) => {
     try {
-      const response = await axios.get(`${BASE_URL}/api/restaurant-orders/all`, {
+      const response = await axios.get(`${BASE_URL}/api/inroom-orders/all`, {
         headers: { 'Authorization': `Bearer ${token}` }
       });
       const bookingOrders = response.data.filter(order => 
@@ -257,7 +257,7 @@ const BookingDetails = () => {
       );
       setRestaurantCharges(bookingOrders);
     } catch (error) {
-      console.error('Error fetching restaurant charges:', error);
+      console.error('Error fetching in-room dining charges:', error);
       setRestaurantCharges([]);
     }
   };

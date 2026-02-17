@@ -36,6 +36,7 @@ const KOT = () => {
   const [userRole, setUserRole] = useState(null);
   const [userRestaurantRole, setUserRestaurantRole] = useState(null);
   const [lastOrderCount, setLastOrderCount] = useState(0);
+  const [orderTypeFilter, setOrderTypeFilter] = useState('all');
 
   const { socket } = useSocket();
 
@@ -107,7 +108,7 @@ const KOT = () => {
         socket.off('order-status-updated');
       }
     };
-  }, [socket]);
+  }, [socket, orderTypeFilter]);
   
   // Re-fetch KOTs when menu items are loaded
   useEffect(() => {
@@ -162,14 +163,24 @@ const KOT = () => {
     try {
       const token = localStorage.getItem('token');
       console.log('Fetching consolidated orders...');
-      const response = await axios.get('/api/restaurant-orders/all', {
-        headers: { Authorization: `Bearer ${token}` }
-      });
       
-      console.log('Orders API Response:', response.data);
+      // Fetch both restaurant and in-room orders
+      const [restaurantRes, inRoomRes] = await Promise.all([
+        axios.get('/api/restaurant-orders/all', { headers: { Authorization: `Bearer ${token}` } }),
+        axios.get('/api/inroom-orders/all', { headers: { Authorization: `Bearer ${token}` } })
+      ]);
+      
+      // Combine and mark order types
+      const restaurantOrders = (restaurantRes.data || []).map(o => ({ ...o, orderType: 'restaurant' }));
+      const inRoomOrders = (inRoomRes.data || []).map(o => ({ ...o, orderType: 'inroom' }));
+      const allOrders = [...restaurantOrders, ...inRoomOrders].sort((a, b) => 
+        new Date(b.createdAt) - new Date(a.createdAt)
+      );
+      
+      console.log('Orders API Response:', allOrders);
       
       // Transform orders to show consolidated KOT view
-      const consolidatedOrders = response.data.map(order => {
+      const consolidatedOrders = allOrders.map(order => {
         const allItems = (order.allKotItems || order.items || []).map(item => {
           // Handle different item data structures
           if (typeof item === 'string') {
@@ -244,6 +255,10 @@ const KOT = () => {
         return isServed || isPaid || isCompleted || isCancelled;
       });
       
+      // Apply order type filter
+      const filteredActive = orderTypeFilter === 'all' ? activeOrders : activeOrders.filter(o => o.orderType === orderTypeFilter);
+      const filteredHistory = orderTypeFilter === 'all' ? historyOrders : historyOrders.filter(o => o.orderType === orderTypeFilter);
+      
       // Check for new orders
       if (kots.length > 0 && activeOrders.length > kots.length) {
         const newOrder = activeOrders[activeOrders.length - 1];
@@ -267,9 +282,9 @@ const KOT = () => {
       console.log('Active Orders:', activeOrders.length);
       console.log('History Orders:', historyOrders.length);
       
-      setKots(activeOrders);
-      setKotHistory(historyOrders);
-      setFilteredKots(activeTab === 'history' ? historyOrders : activeOrders);
+      setKots(filteredActive);
+      setKotHistory(filteredHistory);
+      setFilteredKots(activeTab === 'history' ? filteredHistory : filteredActive);
     } catch (error) {
       console.error('Error fetching consolidated orders:', error);
     }
@@ -550,8 +565,9 @@ const KOT = () => {
 
                 <div class="mb-2">
                     <div class="flex justify-between font-bold border-b mb-1">
-                        <span style="width: 40%">Item</span>
-                        <span style="width: 15%; text-align: center">Qty</span>
+                        <span style="width: 30%">Item</span>
+                        <span style="width: 10%; text-align: center">Qty</span>
+                        <span style="width: 15%; text-align: right">Price</span>
                         <span style="width: 15%; text-align: center">KOT</span>
                         <span style="width: 30%">Notes</span>
                     </div>
@@ -561,12 +577,15 @@ const KOT = () => {
                     ${kot.items?.map(item => {
                         const itemName = typeof item === 'string' ? item : (item.name || item.itemName || 'Unknown Item');
                         const quantity = typeof item === 'object' ? (item.quantity || 1) : 1;
+                        const price = typeof item === 'object' ? (item.price || 0) : 0;
+                        const isFree = typeof item === 'object' ? (item.isFree || false) : false;
                         const kotNumber = typeof item === 'object' ? (item.kotNumber || 1) : 1;
                         const note = typeof item === 'object' ? (item.note || '') : '';
                         return `
                             <div class="flex justify-between mb-1">
-                                <span style="width: 40%">${itemName}</span>
-                                <span style="width: 15%; text-align: center">${quantity}</span>
+                                <span style="width: 30%">${itemName}</span>
+                                <span style="width: 10%; text-align: center">${quantity}</span>
+                                <span style="width: 15%; text-align: right">${isFree ? 'FREE' : '₹' + price}</span>
                                 <span style="width: 15%; text-align: center">K${kotNumber}</span>
                                 <span style="width: 30%">${note || '-'}</span>
                             </div>
@@ -755,7 +774,7 @@ const KOT = () => {
             {(activeTab === 'kots' || activeTab === 'history') && (
               <div className="p-6">
                 <form onSubmit={handleSearch} className="mb-4">
-                  <div className="flex flex-col sm:flex-row gap-2 max-w-md">
+                  <div className="flex flex-col sm:flex-row gap-2">
                     <input
                       type="text"
                       value={searchQuery}
@@ -764,6 +783,16 @@ const KOT = () => {
                       className="flex-1 p-2 border border-border rounded bg-white text-text focus:border-primary focus:outline-none text-sm"
                       style={{ borderColor: 'hsl(45, 100%, 85%)', backgroundColor: 'white', color: 'hsl(45, 100%, 20%)' }}
                     />
+                    <select
+                      value={orderTypeFilter}
+                      onChange={(e) => setOrderTypeFilter(e.target.value)}
+                      className="p-2 border border-border rounded bg-white text-text focus:border-primary focus:outline-none text-sm"
+                      style={{ borderColor: 'hsl(45, 100%, 85%)', backgroundColor: 'white', color: 'hsl(45, 100%, 20%)' }}
+                    >
+                      <option value="all">All Orders</option>
+                      <option value="restaurant">Restaurant</option>
+                      <option value="inroom">In-Room</option>
+                    </select>
                     <button
                       type="submit"
                       className="bg-primary text-text px-4 py-2 rounded hover:bg-hover transition-colors whitespace-nowrap text-sm"
@@ -792,6 +821,13 @@ const KOT = () => {
                         <tr key={kot._id} className={index % 2 === 0 ? 'bg-background' : 'bg-white'}>
                           <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm font-mono" style={{ color: 'hsl(45, 100%, 20%)' }}>
                             <div className="font-semibold">{kot.displayNumber || kot.kotNumber?.slice(-3) || kot.orderId?.slice(-6) || 'N/A'}</div>
+                            <span className={`inline-block mt-1 px-2 py-1 text-xs font-medium rounded ${
+                              kot.orderType === 'inroom' 
+                                ? 'bg-purple-100 text-purple-800' 
+                                : 'bg-blue-100 text-blue-800'
+                            }`}>
+                              {kot.orderType === 'inroom' ? '🏨 In-Room' : '🍽️ Restaurant'}
+                            </span>
                           </td>
                           <td className="px-2 sm:px-4 py-3 text-xs sm:text-sm" style={{ color: 'hsl(45, 100%, 20%)' }}>
                             <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded text-xs">

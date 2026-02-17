@@ -37,7 +37,7 @@ export default function RestaurantInvoice({ orderData: propOrderData, isEmbedded
       }
       
       if (!order && id) {
-        const response = await axios.get(`/api/restaurant-orders/${id}`, {
+        const response = await axios.get(`/api/inroom-orders/details/${id}`, {
           headers: { Authorization: `Bearer ${token}` }
         });
         order = response.data;
@@ -51,7 +51,7 @@ export default function RestaurantInvoice({ orderData: propOrderData, isEmbedded
       let allBookingOrders = [order];
       if (order.bookingId) {
         try {
-          const allOrdersResponse = await axios.get('/api/restaurant-orders/all', {
+          const allOrdersResponse = await axios.get('/api/inroom-orders/all', {
             headers: { Authorization: `Bearer ${token}` }
           });
           allBookingOrders = allOrdersResponse.data.filter(o => o.bookingId?._id === order.bookingId._id || o.bookingId === order.bookingId._id);

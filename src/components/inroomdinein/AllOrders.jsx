@@ -71,6 +71,16 @@ const AllOrders = () => {
       }
     };
     loadInitialData();
+
+    // Listen for order status changes from chef dashboard
+    const handleStatusChange = () => {
+      fetchOrders();
+    };
+    window.addEventListener('orderStatusChanged', handleStatusChange);
+    
+    return () => {
+      window.removeEventListener('orderStatusChanged', handleStatusChange);
+    };
   }, []);
 
   useEffect(() => {
@@ -94,7 +104,7 @@ const AllOrders = () => {
   const fetchOrders = async () => {
     try {
       const token = localStorage.getItem('token');
-      const response = await axios.get('/api/restaurant-orders/all', {
+      const response = await axios.get('/api/inroom-orders/all', {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -146,12 +156,119 @@ const AllOrders = () => {
     setCurrentPage(1);
   };
 
+  const printKOT = async (orderId) => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await axios.get(`/api/inroom-orders/details/${orderId}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const order = response.data;
+
+      const printWindow = window.open('', '_blank');
+      const printContent = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <title>KOT #${order._id?.slice(-6) || 'N/A'}</title>
+          <style>
+            @page { size: 80mm auto; margin: 0; }
+            body { margin: 0; padding: 2mm; font-family: monospace; font-size: 10px; width: 80mm; }
+            .text-center { text-align: center; }
+            .mb-1 { margin-bottom: 4px; }
+            .mb-2 { margin-bottom: 8px; }
+            .border-b { border-bottom: 1px solid #000; }
+            .flex { display: flex; justify-content: space-between; }
+            .font-bold { font-weight: bold; }
+          </style>
+        </head>
+        <body>
+          <div class="text-center mb-2">
+            <div class="font-bold" style="font-size: 12px;">ASHOKA</div>
+            <div class="mb-1">EXPERIENCE COMFORT</div>
+            <div class="mb-2">KITCHEN ORDER TICKET</div>
+            <div class="font-bold mb-1">ASHOKA DINING</div>
+            <div class="mb-1">(A Unit Of Ashoka hospitality)</div>
+            <div class="mb-1">Add : Near Hanuman Mandir, Deoria Road</div>
+            <div class="mb-1">Kurnaghat, Gorakhpur - 273008</div>
+            <div class="mb-1">GSTIN : 09ANHPJ7242D2Z1</div>
+            <div class="mb-2">Mob : 6388491244</div>
+            <div class="border-b mb-2"></div>
+          </div>
+
+          <div class="mb-2">
+            <div class="flex mb-1">
+              <span>KOT #: ${order._id?.slice(-6) || 'N/A'}</span>
+              <span>Room: ${order.tableNo || 'N/A'}</span>
+            </div>
+            <div class="flex mb-1">
+              <span>Date: ${new Date().toLocaleDateString('en-GB')}</span>
+              <span>Time: ${new Date().toLocaleTimeString('en-GB', { hour12: false })}</span>
+            </div>
+            <div class="flex mb-2">
+              <span>Status: ${order.status?.toUpperCase() || 'PENDING'}</span>
+              <span>Type: IN-ROOM</span>
+            </div>
+            <div class="border-b mb-2"></div>
+          </div>
+
+          <div class="mb-2">
+            <div class="flex font-bold border-b mb-1">
+              <span style="width: 40%">Item</span>
+              <span style="width: 15%; text-align: center">Qty</span>
+              <span style="width: 20%; text-align: right">Price</span>
+              <span style="width: 25%">Notes</span>
+            </div>
+          </div>
+
+          <div class="mb-2">
+            ${order.items?.map(item => `
+              <div class="flex mb-1">
+                <span style="width: 40%">${item.itemName || 'Unknown'}</span>
+                <span style="width: 15%; text-align: center">${item.quantity || 1}</span>
+                <span style="width: 20%; text-align: right">${item.isFree || item.nonChargeable ? 'FREE' : '₹' + (item.price || 0)}</span>
+                <span style="width: 25%">${item.note || '-'}</span>
+              </div>
+            `).join('') || '<div>No items</div>'}
+            <div class="border-b mb-2"></div>
+          </div>
+
+          <div class="mb-2">
+            <div class="mb-1">Guest: ${order.customerName || order.guestName || 'N/A'}</div>
+            <div class="mb-1">GRC No: ${order.grcNo || 'N/A'}</div>
+            <div class="mb-1">Total Items: ${order.items?.length || 0}</div>
+            <div class="border-b mb-2"></div>
+          </div>
+
+          <div class="text-center mb-2">
+            <div class="mb-2">Kitchen Copy - In-Room Dining</div>
+            <div class="border-b mb-2"></div>
+            <div>Printed: ${new Date().toLocaleString('en-GB')}</div>
+          </div>
+
+          <script>
+            window.onload = function() {
+              window.print();
+              window.onafterprint = function() { window.close(); };
+            };
+          </script>
+        </body>
+        </html>
+      `;
+      
+      printWindow.document.write(printContent);
+      printWindow.document.close();
+    } catch (error) {
+      console.error('Error printing KOT:', error);
+      alert('Failed to print KOT');
+    }
+  };
+
   const updateOrderStatus = async (orderId, newStatus) => {
     try {
       const token = localStorage.getItem('token');
       
-      // Update restaurant order status
-      await axios.patch(`/api/restaurant-orders/${orderId}/status`, {
+      // Update in-room order status
+      await axios.patch(`/api/inroom-orders/${orderId}/status`, {
         status: newStatus
       }, {
         headers: { Authorization: `Bearer ${token}` }
@@ -409,7 +526,7 @@ const AllOrders = () => {
                           Delete
                         </button>
                       )}
-                      {order.status === 'pending' && (
+                      {(order.status === 'pending' || order.status === 'served') && (
                         <>
                           <button
                             onClick={() => updateOrderStatus(order._id, 'completed')}
@@ -418,19 +535,19 @@ const AllOrders = () => {
                             Complete
                           </button>
                           <button
-                            onClick={() => navigate(`/restaurant/invoice/${order._id}`, { state: { orderData: order } })}
+                            onClick={() => printKOT(order._id)}
                             className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
                           >
-                            Invoice
+                            KOT
                           </button>
                         </>
                       )}
-                      {(order.status === 'completed' || order.status === 'served') && (
+                      {order.status === 'completed' && (
                         <button
-                          onClick={() => navigate(`/restaurant/invoice/${order._id}`, { state: { orderData: order } })}
+                          onClick={() => printKOT(order._id)}
                           className="bg-blue-500 text-white px-3 py-1 rounded text-sm hover:bg-blue-600"
                         >
-                          Invoice
+                          KOT
                         </button>
                       )}
                     </div>

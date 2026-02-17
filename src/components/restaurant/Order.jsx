@@ -73,7 +73,6 @@ const Order = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         const itemsData = itemsRes.data.menuItems || itemsRes.data.data || [];
-        console.log('Menu items loaded:', itemsData);
         setMenuItems(itemsData);
       } catch (error) {
         console.error('Error fetching items:', error);
@@ -107,7 +106,6 @@ const Order = () => {
           }));
         
         setStaff(restaurantStaff);
-        console.log('Restaurant staff:', restaurantStaff);
       } catch (error) {
         console.error('Error fetching staff:', error);
         setStaff([]);
@@ -129,7 +127,6 @@ const Order = () => {
           headers: { Authorization: `Bearer ${token}` }
         });
         setTables(tablesRes.data);
-        console.log('Tables loaded:', tablesRes.data);
       } catch (error) {
         console.error('Error fetching tables:', error);
         setTables([]);
@@ -187,29 +184,26 @@ const Order = () => {
     setItemToNote(null);
   };
 
-  // Handle NOC toggle for entire cart
-  const handleNocToggle = (enabled) => {
-    setIsNocEnabled(enabled);
-    if (!enabled) {
-      setSelectedNocId('');
-      setCartItems(prevItems =>
-        prevItems.map(item => ({ ...item, isFree: false, nocId: null }))
-      );
-    }
+  // Handle NOC toggle for individual item
+  const handleItemNocToggle = (itemId, enabled) => {
+    setCartItems(prevItems =>
+      prevItems.map(item =>
+        item._id === itemId
+          ? { ...item, isFree: enabled, nocId: enabled ? null : null }
+          : item
+      )
+    );
   };
 
-  // Apply NOC to all items
-  const applyNocToAllItems = (nocId) => {
-    setSelectedNocId(nocId);
-    if (nocId && isNocEnabled) {
-      setCartItems(prevItems =>
-        prevItems.map(item => ({ ...item, isFree: true, nocId: nocId }))
-      );
-    } else {
-      setCartItems(prevItems =>
-        prevItems.map(item => ({ ...item, isFree: false, nocId: null }))
-      );
-    }
+  // Apply NOC to specific item
+  const applyNocToItem = (itemId, nocId) => {
+    setCartItems(prevItems =>
+      prevItems.map(item =>
+        item._id === itemId
+          ? { ...item, isFree: !!nocId, nocId: nocId || null }
+          : item
+      )
+    );
   };
 
   // Function to clear all items from the cart
@@ -270,10 +264,11 @@ const Order = () => {
         return;
       }
       
-      const finalOrderData = {
+        const finalOrderData = {
         staffName: orderData.staffName,
         customerName: orderData.customerName,
         tableNo: orderData.tableNo,
+        orderType: 'restaurant',
         items: orderItems.map(item => {
           const cartItem = cartItems.find(ci => ci._id === item.itemId);
           return {
@@ -297,25 +292,6 @@ const Order = () => {
         isLoyalty: false
       };
       
-      console.log('Sending order data:', finalOrderData);
-      console.log('Cart items with NOC status:', cartItems.map(item => ({
-        name: item.name,
-        price: item.Price || item.price,
-        quantity: item.quantity,
-        isFree: item.isFree,
-        nocId: item.nocId
-      })));
-      console.log('Calculated total amount:', finalOrderData.amount);
-      console.log('Token exists:', !!token);
-      console.log('Items validation:', finalOrderData.items.map(item => ({
-        itemId: item.itemId,
-        quantity: item.quantity,
-        price: item.price,
-        hasValidId: !!item.itemId,
-        hasValidQuantity: typeof item.quantity === 'number' && item.quantity > 0,
-        hasValidPrice: typeof item.price === 'number' && item.price >= 0
-      })));
-      
       const orderResponse = await axios.post('/api/restaurant-orders/create', finalOrderData, {
         headers: { 
           Authorization: `Bearer ${token}`,
@@ -323,19 +299,13 @@ const Order = () => {
         }
       });
       
-      console.log('Order response:', orderResponse.data);
-      console.log('Final order amount in DB:', orderResponse.data.order?.amount);
       showToast.success('🎉 Order placed successfully!');
       setCartItems([]);
       setOrderData({ staffName: '', staffId: '', customerName: '', tableNo: '', bookingId: '', grcNo: '', roomNumber: '', guestName: '', guestPhone: '', items: [], amount: 0 });
       setIsCartOpen(false);
       
     } catch (error) {
-      console.error('=== ORDER PLACEMENT ERROR ===');
       console.error('Error placing order:', error);
-      console.error('Error response:', error.response?.data);
-      console.error('Error status:', error.response?.status);
-      console.error('Error headers:', error.response?.headers);
       
       // Check if it's a status validation error and try without status field
       if (error.response?.data?.error?.includes('status') && error.response?.data?.error?.includes('enum')) {
@@ -462,7 +432,20 @@ const Order = () => {
 
       {/* Menu grid */}
       <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-6">
-        {filteredMenu.map((item, index) => (
+        {filteredMenu.map((item, index) => {
+        // Debug: Log item structure
+        if (index === 0) {
+          console.log('Sample menu item structure:', {
+            _id: item._id,
+            name: item.name,
+            category: item.category,
+            Price: item.Price,
+            price: item.price,
+            allKeys: Object.keys(item)
+          });
+        }
+        
+        return (
           <motion.div
             key={item._id}
             initial={{ opacity: 0, y: 20 }}
@@ -472,7 +455,6 @@ const Order = () => {
             className="bg-white/90 backdrop-blur-sm p-6 rounded-2xl shadow-xl border-2 border-[#c3ad6b]/30 hover:border-[#c3ad6b] hover:shadow-2xl transition-all duration-300"
           >
             <h3 className="text-xl font-bold truncate text-[#b39b5a] mb-2">{item.name}</h3>
-            <p className="text-sm mb-4 text-[#c3ad6b] font-medium">{item.category}</p>
             <p className="mb-4 font-bold text-lg text-gray-800">₹{(item.Price || item.price || 0).toFixed(2)}</p>
 
             {cartItems.some(i => i._id === item._id) ? (
@@ -512,7 +494,8 @@ const Order = () => {
               </button>
             )}
           </motion.div>
-        ))}
+        );
+      })}
       </div>
 
       {/* Floating Cart Button */}
@@ -577,7 +560,6 @@ const Order = () => {
                           <td className="py-3">
                             <div>
                               <div className="font-medium text-gray-800">{item.name}</div>
-                              <div className="text-xs text-gray-500">{item.category}</div>
                               <div className="text-xs text-[#c3ad6b]">₹{(item.Price || item.price || 0).toFixed(2)} each</div>
                               {item.note && (
                                 <div className="text-xs text-gray-500 italic mt-1">Note: {item.note}</div>
@@ -602,10 +584,10 @@ const Order = () => {
                             </div>
                           </td>
                           <td className="py-3 text-right font-semibold text-gray-800">
-                            {isNocEnabled && selectedNocId ? (
+                            {item.isFree ? (
                               <div>
                                 <span className="line-through text-gray-400">₹{((item.Price || item.price || 0) * item.quantity).toFixed(2)}</span>
-                                <div className="text-green-600 font-bold">FREE</div>
+                                <div className="text-green-600 font-bold text-xs">FREE</div>
                               </div>
                             ) : (
                               <span>₹{((item.Price || item.price || 0) * item.quantity).toFixed(2)}</span>
@@ -629,47 +611,40 @@ const Order = () => {
 
             {cartItems.length > 0 && (
               <div className="border-t p-4">
-                {/* NOC Section */}
-                <div className="mb-4 p-3 bg-gray-50 rounded-lg">
-                  <div className="flex items-center gap-3 mb-2">
-                    <input
-                      type="checkbox"
-                      id="noc-enabled"
-                      checked={isNocEnabled}
-                      onChange={(e) => handleNocToggle(e.target.checked)}
-                      className="rounded text-[#c3ad6b] focus:ring-2 focus:ring-[#c3ad6b]"
-                    />
-                    <label htmlFor="noc-enabled" className="font-medium text-gray-700">
-                      Apply NOC (Make all items free)
-                    </label>
-                  </div>
-                  {isNocEnabled && (
-                    <select
-                      value={selectedNocId}
-                      onChange={(e) => applyNocToAllItems(e.target.value)}
-                      className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#c3ad6b] focus:border-[#c3ad6b]"
-                    >
-                      <option value="">Select Authority</option>
-                      {nocs.length === 0 ? (
-                        <option disabled>No NOCs available</option>
-                      ) : (
-                        nocs.map(noc => (
-                          <option key={noc._id} value={noc._id}>
-                            {noc.name || 'Unnamed NOC'} ({noc.authorityType?.toUpperCase() || 'UNKNOWN'})
-                          </option>
-                        ))
+                {/* Per-Item NOC Section */}
+                <div className="mb-4">
+                  <div className="font-semibold text-gray-700 mb-3">Apply NOC to Items:</div>
+                  {cartItems.map(item => (
+                    <div key={item._id} className="mb-3 p-3 bg-gray-50 rounded-lg">
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="font-medium text-gray-800 text-sm">{item.name}</div>
+                        <input
+                          type="checkbox"
+                          checked={item.isFree}
+                          onChange={(e) => handleItemNocToggle(item._id, e.target.checked)}
+                          className="rounded text-[#c3ad6b] focus:ring-2 focus:ring-[#c3ad6b]"
+                        />
+                      </div>
+                      {item.isFree && (
+                        <select
+                          value={item.nocId || ''}
+                          onChange={(e) => applyNocToItem(item._id, e.target.value)}
+                          className="w-full p-2 border border-gray-300 rounded-md text-sm focus:ring-2 focus:ring-[#c3ad6b] focus:border-[#c3ad6b]"
+                        >
+                          <option value="">Select Authority</option>
+                          {nocs.map(noc => (
+                            <option key={noc._id} value={noc._id}>
+                              {noc.name} ({noc.authorityType?.toUpperCase()})
+                            </option>
+                          ))}
+                        </select>
                       )}
-                    </select>
-                  )}
+                    </div>
+                  ))}
                 </div>
 
                 <div className="flex justify-between items-center mb-4">
-                  <div>
-                    <span className="font-bold text-lg text-gray-800">Total: ₹{getTotalAmount().toFixed(2)}</span>
-                    {isNocEnabled && selectedNocId && (
-                      <div className="text-xs text-green-600">* All items are free with NOC</div>
-                    )}
-                  </div>
+                  <span className="font-bold text-lg text-gray-800">Total: ₹{getTotalAmount().toFixed(2)}</span>
                 </div>
                 <div className="space-y-2">
                   <button
