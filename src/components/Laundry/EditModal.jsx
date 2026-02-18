@@ -9,10 +9,51 @@ const EditModal = ({ isOpen, onClose, selectedOrder, onSuccess }) => {
 
   useEffect(() => {
     if (selectedOrder) {
+      console.log('Selected Order:', selectedOrder);
       setEditFormData(selectedOrder);
-      setEditItems(selectedOrder.items || []);
+      const itemsWithPrices = (selectedOrder.items || []).map(item => {
+        console.log('Processing item:', item);
+        // Extract price from multiple possible sources
+        let price = 0;
+        if (item.rateId) {
+          if (typeof item.rateId === 'object' && item.rateId.rate) {
+            price = item.rateId.rate;
+            console.log('Price from rateId.rate:', price);
+          }
+        }
+        if (!price && item.calculatedAmount && item.quantity) {
+          price = item.calculatedAmount / item.quantity;
+          console.log('Price from calculatedAmount:', price);
+        }
+        if (!price && item.price) {
+          price = item.price;
+          console.log('Price from item.price:', price);
+        }
+        
+        const processedItem = {
+          ...item,
+          price: price,
+          itemName: item.itemName || (typeof item.rateId === 'object' ? item.rateId.itemName : ''),
+          rateId: typeof item.rateId === 'object' ? item.rateId._id : item.rateId
+        };
+        console.log('Processed item:', processedItem);
+        return processedItem;
+      });
+      console.log('All items with prices:', itemsWithPrices);
+      setEditItems(itemsWithPrices);
     }
   }, [selectedOrder]);
+
+  // Auto-calculate total amount when items change
+  useEffect(() => {
+    const total = editItems.reduce((sum, item) => {
+      if (item.status !== 'cancelled') {
+        return sum + ((item.price || 0) * (item.quantity || 1));
+      }
+      return sum;
+    }, 0);
+    setEditFormData(prev => ({ ...prev, totalAmount: total }));
+  }, [editItems]);
 
   useEffect(() => {
     if (isOpen && laundryItems.length === 0) {
@@ -77,9 +118,14 @@ const EditModal = ({ isOpen, onClose, selectedOrder, onSuccess }) => {
   const handleItemSelect = (index, selectedItemId) => {
     const selectedItem = laundryItems.find(item => item._id === selectedItemId);
     if (selectedItem) {
-      updateItem(index, 'rateId', selectedItem._id);
-      updateItem(index, 'itemName', selectedItem.itemName);
-      updateItem(index, 'price', selectedItem.rate);
+      const updatedItems = [...editItems];
+      updatedItems[index] = {
+        ...updatedItems[index],
+        rateId: selectedItem._id,
+        itemName: selectedItem.itemName,
+        price: selectedItem.rate || 0
+      };
+      setEditItems(updatedItems);
     }
   };
 
@@ -266,10 +312,11 @@ const EditModal = ({ isOpen, onClose, selectedOrder, onSuccess }) => {
                   <div className="col-span-1">
                     <input
                       type="number"
-                      value={item.price}
-                      onChange={(e) => updateItem(index, 'price', parseFloat(e.target.value) || 0)}
-                      placeholder="Price"
-                      className="w-full p-2 border rounded text-sm"
+                      value={item.price !== undefined && item.price !== null ? item.price : ''}
+                      placeholder="0"
+                      className="w-full p-2 border rounded text-sm bg-gray-100"
+                      readOnly
+                      title={`Price: ${item.price || 0}`}
                     />
                   </div>
                   <div className="col-span-2">

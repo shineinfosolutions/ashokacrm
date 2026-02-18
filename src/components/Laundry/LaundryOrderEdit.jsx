@@ -8,6 +8,7 @@ const LaundryOrderEdit = () => {
   const { id } = useParams();
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [laundryItems, setLaundryItems] = useState([]);
   const [formData, setFormData] = useState({
     grcNo: '',
     roomNumber: '',
@@ -20,7 +21,32 @@ const LaundryOrderEdit = () => {
 
   useEffect(() => {
     fetchOrder();
+    fetchLaundryItems();
   }, [id]);
+
+  // Auto-calculate total when items change
+  useEffect(() => {
+    const total = formData.items.reduce((sum, item) => {
+      if (item.status !== 'cancelled' && item.status !== 'lost') {
+        return sum + ((item.price || 0) * (item.quantity || 1));
+      }
+      return sum;
+    }, 0);
+    setFormData(prev => ({ ...prev, totalAmount: total }));
+  }, [formData.items]);
+
+  const fetchLaundryItems = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/laundry-items/`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await response.json();
+      setLaundryItems(data.success ? data.laundryItems : []);
+    } catch (error) {
+      console.error('Failed to fetch laundry items');
+    }
+  };
 
   const fetchOrder = async () => {
     try {
@@ -30,6 +56,26 @@ const LaundryOrderEdit = () => {
       });
       const data = await response.json();
       const order = data.order || data;
+      
+      // Extract prices from items
+      const itemsWithPrices = (order.items || []).map(item => {
+        let price = 0;
+        if (item.rateId && typeof item.rateId === 'object' && item.rateId.rate) {
+          price = item.rateId.rate;
+        } else if (item.calculatedAmount && item.quantity) {
+          price = item.calculatedAmount / item.quantity;
+        } else if (item.price) {
+          price = item.price;
+        }
+        
+        return {
+          ...item,
+          price: price,
+          itemName: item.itemName || (typeof item.rateId === 'object' ? item.rateId.itemName : ''),
+          rateId: typeof item.rateId === 'object' ? item.rateId._id : item.rateId
+        };
+      });
+      
       setFormData({
         grcNo: order.grcNo || '',
         roomNumber: order.roomNumber || '',
@@ -37,7 +83,7 @@ const LaundryOrderEdit = () => {
         laundryStatus: order.laundryStatus || 'pending',
         serviceType: order.serviceType || 'wash',
         totalAmount: order.totalAmount || 0,
-        items: order.items || []
+        items: itemsWithPrices
       });
     } catch (error) {
       toast.error('Failed to fetch order');
@@ -79,10 +125,39 @@ const LaundryOrderEdit = () => {
 
   const handleItemChange = (index, field, value) => {
     const updatedItems = [...formData.items];
-    updatedItems[index] = { ...updatedItems[index], [field]: value };
+    
+    // If changing to a new item from dropdown
+    if (field === 'rateId') {
+      const selectedItem = laundryItems.find(item => item._id === value);
+      if (selectedItem) {
+        updatedItems[index] = {
+          ...updatedItems[index],
+          rateId: selectedItem._id,
+          itemName: selectedItem.itemName,
+          price: selectedItem.rate || 0
+        };
+      }
+    } else {
+      updatedItems[index] = { ...updatedItems[index], [field]: value };
+    }
+    
     setFormData(prev => ({
       ...prev,
       items: updatedItems
+    }));
+  };
+
+  const addNewItem = () => {
+    setFormData(prev => ({
+      ...prev,
+      items: [...prev.items, { itemName: '', quantity: 1, price: 0, rateId: '', status: 'pending' }]
+    }));
+  };
+
+  const removeItem = (index) => {
+    setFormData(prev => ({
+      ...prev,
+      items: prev.items.filter((_, i) => i !== index)
     }));
   };
 
@@ -183,31 +258,69 @@ const LaundryOrderEdit = () => {
         </div>
 
         <div className="mt-6">
-          <h3 className="font-semibold mb-3">Items</h3>
+          <div className="flex justify-between items-center mb-3">
+            <h3 className="font-semibold">Items</h3>
+            <button
+              type="button"
+              onClick={addNewItem}
+              className="px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
+            >
+              Add Item
+            </button>
+          </div>
           <div className="space-y-2">
             {formData.items?.map((item, index) => (
-              <div key={index} className="grid grid-cols-3 gap-2 p-2 bg-gray-50 rounded">
-                <input
-                  type="text"
-                  value={item.itemName || ''}
-                  onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
-                  placeholder="Item name"
-                  className="p-2 border rounded"
-                />
-                <input
-                  type="number"
-                  value={item.quantity || 1}
-                  onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value))}
-                  placeholder="Quantity"
-                  className="p-2 border rounded"
-                />
-                <input
-                  type="number"
-                  value={item.price || 0}
-                  onChange={(e) => handleItemChange(index, 'price', parseFloat(e.target.value))}
-                  placeholder="Price"
-                  className="p-2 border rounded"
-                />
+              <div key={index} className="grid grid-cols-12 gap-2 p-2 bg-gray-50 rounded">
+                <div className="col-span-4">
+                  <select
+                    value={item.rateId || ''}
+                    onChange={(e) => handleItemChange(index, 'rateId', e.target.value)}
+                    className="w-full p-2 border rounded text-sm"
+                  >
+                    <option value="">Select Item</option>
+                    {laundryItems.map((laundryItem) => (
+                      <option key={laundryItem._id} value={laundryItem._id}>
+                        {laundryItem.itemName} - ₹{laundryItem.rate}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="col-span-3">
+                  <input
+                    type="text"
+                    value={item.itemName || ''}
+                    onChange={(e) => handleItemChange(index, 'itemName', e.target.value)}
+                    placeholder="Item name"
+                    className="w-full p-2 border rounded text-sm"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <input
+                    type="number"
+                    value={item.quantity || 1}
+                    onChange={(e) => handleItemChange(index, 'quantity', parseInt(e.target.value))}
+                    placeholder="Qty"
+                    className="w-full p-2 border rounded text-sm"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <input
+                    type="number"
+                    value={item.price || 0}
+                    placeholder="Price"
+                    className="w-full p-2 border rounded text-sm bg-gray-100"
+                    readOnly
+                  />
+                </div>
+                <div className="col-span-1">
+                  <button
+                    type="button"
+                    onClick={() => removeItem(index)}
+                    className="w-full p-2 bg-red-600 text-white rounded text-sm hover:bg-red-700"
+                  >
+                    ×
+                  </button>
+                </div>
               </div>
             ))}
           </div>

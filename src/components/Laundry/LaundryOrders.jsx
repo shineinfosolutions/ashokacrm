@@ -140,11 +140,43 @@ const LaundryOrders = () => {
       return;
     }
     
+    // Extract prices from items
+    const itemsWithPrices = (order.items || []).map(item => {
+      let price = 0;
+      if (item.rateId && typeof item.rateId === 'object' && item.rateId.rate) {
+        price = item.rateId.rate;
+      } else if (item.calculatedAmount && item.quantity) {
+        price = item.calculatedAmount / item.quantity;
+      } else if (item.price) {
+        price = item.price;
+      }
+      
+      return {
+        ...item,
+        price: price,
+        itemName: item.itemName || (typeof item.rateId === 'object' ? item.rateId.itemName : ''),
+        rateId: typeof item.rateId === 'object' ? item.rateId._id : item.rateId
+      };
+    });
+    
     setSelectedOrder(order);
     setEditFormData(order);
-    setEditItems(order.items || []);
+    setEditItems(itemsWithPrices);
     setShowEditModal(true);
   };
+
+  // Auto-calculate total when items change
+  useEffect(() => {
+    if (showEditModal) {
+      const total = editItems.reduce((sum, item) => {
+        if (item.status !== 'cancelled' && item.status !== 'lost') {
+          return sum + ((item.price || 0) * (item.quantity || 1));
+        }
+        return sum;
+      }, 0);
+      setEditFormData(prev => ({ ...prev, totalAmount: total }));
+    }
+  }, [editItems, showEditModal]);
 
   const handleUpdateOrder = async () => {
     try {
@@ -195,9 +227,14 @@ const LaundryOrders = () => {
   const handleItemSelect = (index, selectedItemId) => {
     const selectedItem = laundryItems.find(item => item._id === selectedItemId);
     if (selectedItem) {
-      updateItem(index, 'rateId', selectedItem._id);
-      updateItem(index, 'itemName', selectedItem.itemName);
-      updateItem(index, 'price', selectedItem.rate);
+      const updatedItems = [...editItems];
+      updatedItems[index] = {
+        ...updatedItems[index],
+        rateId: selectedItem._id,
+        itemName: selectedItem.itemName,
+        price: selectedItem.rate || 0
+      };
+      setEditItems(updatedItems);
     }
   };
 
