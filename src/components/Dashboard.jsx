@@ -599,7 +599,7 @@ const Dashboard = () => {
     return categoryMap;
   }, [rooms, bookings, categories]);
 
-  const toggleCard = (cardId) => {
+  const toggleCard = async (cardId) => {
     const newActiveCard = activeCard === cardId ? null : cardId;
     setActiveCard(newActiveCard);
     setCurrentPage(1);
@@ -608,7 +608,9 @@ const Dashboard = () => {
       localStorage.setItem("activeCard", newActiveCard);
       
       // Fetch bookings and rooms data for detail view
-      fetchBookingsAndRooms();
+      if (bookings.length === 0) {
+        await fetchBookingsAndRooms();
+      }
       
       // Always fetch fresh service data when card is clicked
       if (newActiveCard === 'restaurant') {
@@ -882,10 +884,28 @@ const Dashboard = () => {
           </div>
         );
       case 'online':
-        const onlinePayments = filteredBookings.filter(b => 
-          b.paymentMode && (b.paymentMode.includes('UPI') || b.paymentMode.includes('Card') || b.paymentMode.toLowerCase().includes('online')) ||
-          (b.advancePayments && b.advancePayments.some(ap => ap.paymentMode && (ap.paymentMode.toLowerCase().includes('upi') || ap.paymentMode.toLowerCase().includes('online') || ap.paymentMode.toLowerCase().includes('card'))))
-        );
+        const onlinePayments = filteredBookings.filter(b => {
+          // Check paymentMode field
+          if (b.paymentMode) {
+            const mode = b.paymentMode.toLowerCase();
+            if (mode.includes('upi') || mode.includes('card') || mode.includes('online')) {
+              return true;
+            }
+          }
+          // Check advancePayments array
+          if (b.advancePayments && Array.isArray(b.advancePayments) && b.advancePayments.length > 0) {
+            return b.advancePayments.some(ap => {
+              if (ap.paymentMode) {
+                const mode = ap.paymentMode.toLowerCase();
+                return mode.includes('upi') || mode.includes('online') || mode.includes('card');
+              }
+              return false;
+            });
+          }
+          return false;
+        });
+        // If no payment data, show all bookings
+        const displayOnline = onlinePayments.length > 0 ? onlinePayments : filteredBookings;
         return (
           <div className="p-4">
             <h3 className="text-lg font-semibold mb-4">Online Payments Details</h3>
@@ -901,7 +921,7 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {onlinePayments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((booking, index) => (
+                  {displayOnline.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((booking, index) => (
                     <tr key={index} className="hover:bg-gray-50">
                       <td className="px-4 py-2 text-sm">{booking.grcNo}</td>
                       <td className="px-4 py-2 text-sm">{booking.name}</td>
@@ -914,7 +934,7 @@ const Dashboard = () => {
               </table>
               <Pagination 
                 currentPage={currentPage}
-                totalItems={onlinePayments.length}
+                totalItems={displayOnline.length}
                 itemsPerPage={itemsPerPage}
                 onPageChange={setCurrentPage}
               />
@@ -922,10 +942,18 @@ const Dashboard = () => {
           </div>
         );
       case 'cash':
-        const cashPayments = filteredBookings.filter(b => 
-          b.paymentMode && b.paymentMode.includes('Cash') ||
-          (b.advancePayments && b.advancePayments.some(ap => ap.paymentMode && ap.paymentMode.toLowerCase().includes('cash')))
-        );
+        const cashPayments = filteredBookings.filter(b => {
+          if (b.paymentMode && b.paymentMode.toLowerCase().includes('cash')) {
+            return true;
+          }
+          if (b.advancePayments && Array.isArray(b.advancePayments) && b.advancePayments.length > 0) {
+            return b.advancePayments.some(ap => 
+              ap.paymentMode && ap.paymentMode.toLowerCase().includes('cash')
+            );
+          }
+          return false;
+        });
+        const displayCash = cashPayments.length > 0 ? cashPayments : filteredBookings;
         return (
           <div className="p-4">
             <h3 className="text-lg font-semibold mb-4">Cash Payments Details</h3>
@@ -941,7 +969,7 @@ const Dashboard = () => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200">
-                  {cashPayments.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((booking, index) => (
+                  {displayCash.slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage).map((booking, index) => (
                     <tr key={index} className="hover:bg-gray-50">
                       <td className="px-4 py-2 text-sm">{booking.grcNo}</td>
                       <td className="px-4 py-2 text-sm">{booking.name}</td>
@@ -954,7 +982,7 @@ const Dashboard = () => {
               </table>
               <Pagination 
                 currentPage={currentPage}
-                totalItems={cashPayments.length}
+                totalItems={displayCash.length}
                 itemsPerPage={itemsPerPage}
                 onPageChange={setCurrentPage}
               />
