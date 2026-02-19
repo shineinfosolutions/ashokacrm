@@ -218,12 +218,8 @@ const HotelCheckout = ({ booking, onClose, onCheckoutComplete }) => {
                   <span className="font-medium">₹{checkoutData.bookingCharges || 0}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b">
-                  <span>Restaurant Charges:</span>
+                  <span>In Room Dine In Charges:</span>
                   <span className="font-medium">₹{checkoutData.restaurantCharges || 0}</span>
-                </div>
-                <div className="flex justify-between py-2 border-b">
-                  <span>Room Service:</span>
-                  <span className="font-medium">₹{checkoutData.roomServiceCharges || 0}</span>
                 </div>
                 <div className="flex justify-between py-2 border-b">
                   <span>Laundry:</span>

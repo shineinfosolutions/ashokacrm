@@ -233,20 +233,20 @@ const Sidebar = () => {
       });
     }
 
-    // Room Service - Admin, GM, Staff, Front Desk
-    if (hasRole(['ADMIN', 'GM', 'STAFF', 'FRONT DESK'])) {
-      items.push({
-        icon: Bell,
-        label: "Room Service",
-        path: "/room-service",
-        isDropdown: true,
-        children: [
-          { label: "Create Order", path: "/room-service/create", icon: ShoppingCart },
-          { label: "Today's Orders", path: "/room-service/today", icon: ClipboardList },
-          { label: "All Orders", path: "/room-service/history", icon: FileText },
-        ],
-      });
-    }
+    // Room Service - Hidden as per requirement
+    // if (hasRole(['ADMIN', 'GM', 'STAFF', 'FRONT DESK'])) {
+    //   items.push({
+    //     icon: Bell,
+    //     label: "Room Service",
+    //     path: "/room-service",
+    //     isDropdown: true,
+    //     children: [
+    //       { label: "Create Order", path: "/room-service/create", icon: ShoppingCart },
+    //       { label: "Today's Orders", path: "/room-service/today", icon: ClipboardList },
+    //       { label: "All Orders", path: "/room-service/history", icon: FileText },
+    //     ],
+    //   });
+    // }
 
 
 
