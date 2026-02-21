@@ -101,7 +101,8 @@ const PaymentModal = ({ order, onProcessPayment, onClose }) => {
       method: paymentMethod,
       amount: getFinalAmount(),
       transactionId: transactionId.trim() || undefined,
-      loyaltyPointsUsed: pointsToRedeem
+      loyaltyPointsUsed: pointsToRedeem,
+      discountPercentage: paymentDiscount
     };
 
     const result = await onProcessPayment(order._id, paymentData);

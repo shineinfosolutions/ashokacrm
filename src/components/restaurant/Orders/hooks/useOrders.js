@@ -40,7 +40,6 @@ export const useOrders = () => {
   const handleCreateOrder = async (orderData) => {
     try {
       const token = localStorage.getItem('token');
-      console.log('Sending order data:', JSON.stringify(orderData, null, 2));
       const response = await axios.post(`${API_BASE_URL}/api/restaurant-orders/create`, orderData, {
         headers: { Authorization: `Bearer ${token}` }
       });
@@ -51,8 +50,6 @@ export const useOrders = () => {
       return { success: true };
     } catch (err) {
       console.error('Create order error:', err);
-      console.error('Error response:', err.response?.data);
-      console.error('Error status:', err.response?.status);
       return { success: false, error: err.response?.data?.error || err.response?.data?.message || 'Failed to create order' };
     }
   };

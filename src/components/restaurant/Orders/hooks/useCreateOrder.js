@@ -175,9 +175,6 @@ export const useCreateOrder = (onCreateOrder) => {
         return total + (item.price * item.quantity);
       }, 0);
 
-      console.log('Calculated subtotal:', subtotal);
-      console.log('Order items:', orderItems);
-
       const orderData = {
         items: orderItems.map(item => ({
           menuId: item.menuId,
