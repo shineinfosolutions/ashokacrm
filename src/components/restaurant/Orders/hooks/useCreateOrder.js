@@ -171,21 +171,29 @@ export const useCreateOrder = (onCreateOrder) => {
         tableNumber = table?.tableNumber;
       }
 
+      const subtotal = orderItems.reduce((total, item) => {
+        return total + (item.price * item.quantity);
+      }, 0);
+
+      console.log('Calculated subtotal:', subtotal);
+      console.log('Order items:', orderItems);
+
       const orderData = {
         items: orderItems.map(item => ({
           menuId: item.menuId,
           quantity: item.quantity,
           variation: {
-            variationId: item.variation._id
+            variationId: item.variation?._id || item.variation?.variationId
           },
-          addons: item.addons.map(addon => ({
+          addons: item.addons?.filter(addon => addon._id).map(addon => ({
             addonId: addon._id
-          })),
-          timeToPrepare: item.timeToPrepare
+          })) || [],
+          timeToPrepare: item.timeToPrepare || 15
         })),
         customerName: customerName.trim(),
-        customerPhone: customerPhone.trim(),
-        guestCount: parseInt(guestCount)
+        customerPhone: customerPhone.trim() || undefined,
+        guestCount: parseInt(guestCount),
+        subtotal: Number(subtotal) || 0
       };
       
       if (tableId) {

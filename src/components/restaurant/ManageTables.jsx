@@ -22,6 +22,7 @@ const ManageTables = () => {
 
   useEffect(() => {
     fetchTables();
+    const interval = setInterval(fetchTables, 5000);
     
     if (socket) {
       socket.on('table-status-updated', (data) => {
@@ -50,6 +51,7 @@ const ManageTables = () => {
     }
 
     return () => {
+      clearInterval(interval);
       if (socket) {
         socket.off('table-status-updated');
         socket.off('table-created');

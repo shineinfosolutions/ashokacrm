@@ -16,6 +16,7 @@ const PaymentModal = ({ order, onProcessPayment, onClose }) => {
   const [customer, setCustomer] = useState(null);
   const [loyaltySettings, setLoyaltySettings] = useState(null);
   const [pointsToRedeem, setPointsToRedeem] = useState(0);
+  const [paymentDiscount, setPaymentDiscount] = useState(0);
 
   // Check if split bill already exists
   useEffect(() => {
@@ -30,22 +31,22 @@ const PaymentModal = ({ order, onProcessPayment, onClose }) => {
       const [customerRes, settingsRes] = await Promise.all([
         fetch(`${import.meta.env.VITE_API_URL}/api/customers?phone=${order.customerPhone}`, {
           headers: { Authorization: `Bearer ${token}` }
-        }),
+        }).catch(() => null),
         fetch(`${import.meta.env.VITE_API_URL}/api/loyalty/settings`, {
           headers: { Authorization: `Bearer ${token}` }
-        })
+        }).catch(() => null)
       ]);
-      if (customerRes.ok) {
+      if (customerRes?.ok) {
         const customers = await customerRes.json();
         const foundCustomer = customers.find(c => c.phone === order.customerPhone);
         setCustomer(foundCustomer);
       }
-      if (settingsRes.ok) {
+      if (settingsRes?.ok) {
         const settings = await settingsRes.json();
         setLoyaltySettings(settings);
       }
     } catch (error) {
-      console.error('Error fetching loyalty data:', error);
+      // Silently fail - loyalty is optional
     }
   };
 
@@ -54,13 +55,13 @@ const PaymentModal = ({ order, onProcessPayment, onClose }) => {
       const token = localStorage.getItem('token');
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/split-bill/${order._id}`, {
         headers: { Authorization: `Bearer ${token}` }
-      });
-      if (response.ok) {
+      }).catch(() => null);
+      if (response?.ok) {
         const data = await response.json();
         setExistingSplitBill(data.splitBill);
       }
     } catch (error) {
-      // No split bill exists, which is fine
+      // Silently fail - split bill is optional
     } finally {
       setCheckingSplit(false);
     }
@@ -81,7 +82,8 @@ const PaymentModal = ({ order, onProcessPayment, onClose }) => {
   };
 
   const getFinalAmount = () => {
-    return Math.max(0, order.totalAmount - calculateDiscount());
+    const discountAmount = (order.totalAmount * paymentDiscount) / 100;
+    return Math.max(0, order.totalAmount - discountAmount - calculateDiscount());
   };
 
   const handleSubmit = async (e) => {
@@ -167,8 +169,20 @@ const PaymentModal = ({ order, onProcessPayment, onClose }) => {
               </div>
               <div className="flex justify-between items-center mb-2">
                 <span className="text-sm text-gray-700">Subtotal:</span>
-                <span className="font-medium text-gray-900">{formatCurrency(order.totalAmount)}</span>
+                <span className="font-medium text-gray-900">{formatCurrency(order.subtotal || order.totalAmount)}</span>
               </div>
+              {order.discount?.percentage > 0 && (
+                <div className="flex justify-between items-center mb-2 text-orange-600">
+                  <span className="text-sm">Discount ({order.discount.percentage}%):</span>
+                  <span className="font-medium">-{formatCurrency((order.subtotal || order.totalAmount) * order.discount.percentage / 100)}</span>
+                </div>
+              )}
+              {paymentDiscount > 0 && (
+                <div className="flex justify-between items-center mb-2 text-blue-600">
+                  <span className="text-sm">Payment Discount ({paymentDiscount}%):</span>
+                  <span className="font-medium">-{formatCurrency((order.totalAmount * paymentDiscount) / 100)}</span>
+                </div>
+              )}
               {pointsToRedeem > 0 && (
                 <div className="flex justify-between items-center mb-2 text-green-600">
                   <span className="text-sm">Loyalty Discount:</span>
@@ -205,6 +219,22 @@ const PaymentModal = ({ order, onProcessPayment, onClose }) => {
                 )}
               </div>
             )}
+
+            {/* Payment Discount */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-900 mb-2">
+                Payment Discount (%)
+              </label>
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={paymentDiscount}
+                onChange={(e) => setPaymentDiscount(Math.min(100, Math.max(0, Number(e.target.value))))}
+                className="w-full bg-white border border-gray-300 rounded-xl px-4 py-2 text-gray-900 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                placeholder="0"
+              />
+            </div>
 
             {/* Payment Method */}
             <div className="mb-6">

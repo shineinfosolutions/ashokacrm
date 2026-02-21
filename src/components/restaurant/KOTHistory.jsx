@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { FiFileText, FiCalendar, FiClock, FiGrid } from 'react-icons/fi';
+import { FiFileText, FiCalendar, FiClock, FiGrid, FiPrinter } from 'react-icons/fi';
 
 const KOTHistory = () => {
   const [historyKots, setHistoryKots] = useState([]);
@@ -28,6 +28,67 @@ const KOTHistory = () => {
       console.error('Error fetching KOT history:', error);
     }
     setLoading(false);
+  };
+
+  const handlePrintKOT = (kot) => {
+    const printWindow = window.open('', '', 'width=800,height=600');
+    printWindow.document.write(`
+      <html><head><title>KOT ${kot.kotNumber}</title>
+      <style>
+        body{font-family:Arial;padding:20px;margin:0;}
+        .header{display:flex;justify-content:space-between;align-items:center;border:2px solid #000;padding:15px;margin-bottom:20px;}
+        .logo{background:#ff6600;color:#fff;width:60px;height:60px;display:flex;align-items:center;justify-content:center;font-size:32px;font-weight:bold;}
+        .title{text-align:center;font-size:20px;font-weight:bold;margin:20px 0;}
+        .info-table{width:100%;border-collapse:collapse;margin-bottom:20px;}
+        .info-table td{border:1px solid #000;padding:8px;}
+        table{width:100%;border-collapse:collapse;}
+        th,td{border:1px solid #000;padding:8px;text-align:left;}
+        th{background:#f0f0f0;font-weight:bold;}
+        .text-right{text-align:right;}
+        .footer{margin-top:30px;text-align:center;font-weight:bold;}
+      </style>
+      </head><body>
+      <div class="header">
+        <div class="logo">R</div>
+        <div>
+          <strong>Restaurant Name</strong><br>
+          <small>Restaurant Address</small>
+        </div>
+        <div style="text-align:right;">
+          <small>📞 +91-XXXX-XXXXXX</small><br>
+          <small>📧 contact@restaurant.com</small>
+        </div>
+      </div>
+      <div class="title">KITCHEN ORDER TICKET</div>
+      <table class="info-table">
+        <tr>
+          <td><strong>KOT No.:</strong> ${kot.kotNumber}</td>
+          <td><strong>Order No.:</strong> ${kot.orderNumber}</td>
+        </tr>
+        <tr>
+          <td><strong>Table/Room:</strong> ${kot.tableNumber || 'N/A'}</td>
+          <td><strong>Customer:</strong> ${kot.customerName || 'Guest'}</td>
+        </tr>
+        <tr>
+          <td><strong>Order Date:</strong> ${new Date(kot.createdAt).toLocaleDateString()}</td>
+          <td><strong>Order Time:</strong> ${new Date(kot.createdAt).toLocaleTimeString()}</td>
+        </tr>
+      </table>
+      <table>
+        <tr><th>S.No</th><th>Item Name</th><th>Qty</th></tr>
+        ${kot.items?.map((item, idx) => `
+          <tr>
+            <td>${idx + 1}</td>
+            <td>${item.name}${item.variation ? ` (${item.variation.name})` : ''}</td>
+            <td>${item.quantity}</td>
+          </tr>
+        `).join('')}
+      </table>
+      <div class="footer">Thank You, Visit Again</div>
+      </body></html>
+    `);
+    printWindow.document.close();
+    printWindow.print();
   };
 
   if (loading) {
@@ -70,6 +131,12 @@ const KOTHistory = () => {
                 </div>
               </div>
               <div className="flex items-center gap-4">
+                <button
+                  onClick={(e) => { e.stopPropagation(); handlePrintKOT(kot); }}
+                  className="px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg flex items-center gap-2 text-sm"
+                >
+                  <FiPrinter /> Print
+                </button>
                 <div className="text-right">
                   <p className="text-sm text-gray-300 flex items-center gap-1 justify-end"><FiCalendar className="inline" /> {new Date(kot.createdAt).toLocaleDateString()}</p>
                   <p className="text-sm text-gray-300 flex items-center gap-1 justify-end"><FiClock className="inline" /> {new Date(kot.createdAt).toLocaleTimeString()}</p>

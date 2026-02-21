@@ -156,21 +156,6 @@ const CreateOrder = ({ onCreateOrder, onCancel }) => {
               />
             </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Discount (%)
-              </label>
-              <input
-                type="number"
-                value={discount}
-                onChange={(e) => setDiscount(Math.min(100, Math.max(0, Number(e.target.value))))}
-                className="w-full bg-white border border-gray-300 rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 text-gray-900 placeholder-gray-400"
-                min="0"
-                max="100"
-                placeholder="0"
-              />
-            </div>
-
             {showMergeOption ? (
               <div className="sm:col-span-2">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
